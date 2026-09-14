@@ -32,7 +32,7 @@ export async function exportarPDF(procedimentos: Procedimento[]) {
   const linhas = montarLinhas(procedimentos);
 
   doc.setFontSize(16);
-  doc.text("OdontoWork — Relatório de Procedimentos", 14, 18);
+  doc.text("Relatório de Procedimentos", 14, 18);
   doc.setFontSize(10);
   doc.setTextColor(120);
   doc.text(`Gerado em ${new Date().toLocaleDateString("pt-BR")}`, 14, 24);
