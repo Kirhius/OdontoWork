@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  input, textarea, select {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .home-btn {
+    @apply w-full flex items-center gap-4 rounded-xl2 px-5 py-5 text-left transition-transform active:scale-[0.98];
+  }
+  .field-label {
+    @apply block text-sm font-medium text-muted mb-1.5;
+  }
+  .field-input {
+    @apply w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink placeholder:text-muted/70 outline-none focus:border-ink/40;
+  }
+  .primary-btn {
+    @apply w-full rounded-xl bg-mint text-mint-ink font-medium py-3.5 transition-transform active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100;
+  }
+  .list-card {
+    @apply rounded-xl border border-line bg-surface px-4 py-3.5;
+  }
+}
