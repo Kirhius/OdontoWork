@@ -7,6 +7,11 @@ export default function ConfiguracoesPage() {
       <PageHeader title="Configurações" backHref="/" />
 
       <nav className="flex flex-col gap-4">
+        <Link href="/configuracoes/procedimentos" className="home-btn bg-mint text-mint-ink">
+          <IconProcedimentos />
+          <span className="font-display text-lg">Procedimentos</span>
+        </Link>
+
         <Link href="/configuracoes/relatorios" className="home-btn bg-blue text-blue-ink">
           <IconRelatorios />
           <span className="font-display text-lg">Relatórios</span>
@@ -18,6 +23,16 @@ export default function ConfiguracoesPage() {
         </Link>
       </nav>
     </div>
+  );
+}
+
+function IconProcedimentos() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <path d="M8 5.5h6.5L19 10v8.5a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M14.3 5.5V10H19" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M9.5 13.2h5M9.5 16h3.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
   );
 }
 

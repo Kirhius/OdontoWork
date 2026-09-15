@@ -12,6 +12,7 @@ import {
   deleteProcedimento,
   getObservacoes,
   getPatient,
+  getPreco,
   getProcedimentos,
 } from "@/lib/storage";
 import { Observacao, Patient, Procedimento, LocalProcedimento } from "@/lib/types";
@@ -105,7 +106,12 @@ function ProcedimentosTab({ patientId }: { patientId: string }) {
     if (!nome.trim()) return;
     const local: LocalProcedimento =
       tipoLocal === "dente" ? { tipo: "dente", numero: numeroDente } : { tipo: tipoLocal };
-    addProcedimento({ patientId, nome: nome.trim(), data, local });
+
+    // Busca o valor cadastrado na tabela de preços (Configurações > Procedimentos).
+    // Esse valor não aparece aqui — só é usado depois nos relatórios.
+    const preco = getPreco(nome, tipoLocal);
+
+    addProcedimento({ patientId, nome: nome.trim(), data, local, valor: preco?.valor });
     setNome("");
     carregar();
   }

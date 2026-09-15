@@ -1,12 +1,14 @@
 import { Procedimento } from "./types";
 import { descreverLocal } from "./local";
 import { getPatient } from "./storage";
+import { formatarReais } from "./moeda";
 
 interface LinhaRelatorio {
   data: string;
   paciente: string;
   procedimento: string;
   local: string;
+  valor: number | undefined;
 }
 
 function montarLinhas(procedimentos: Procedimento[]): LinhaRelatorio[] {
@@ -15,6 +17,7 @@ function montarLinhas(procedimentos: Procedimento[]): LinhaRelatorio[] {
     paciente: getPatient(p.patientId)?.nome ?? "Paciente removido",
     procedimento: p.nome,
     local: descreverLocal(p.local),
+    valor: p.valor,
   }));
 }
 
@@ -24,24 +27,37 @@ function formatarData(iso: string): string {
   return `${dia}/${mes}/${ano}`;
 }
 
+function somarTotal(linhas: LinhaRelatorio[]): number {
+  return linhas.reduce((soma, l) => soma + (l.valor ?? 0), 0);
+}
+
 export async function exportarPDF(procedimentos: Procedimento[]) {
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
 
   const doc = new jsPDF();
   const linhas = montarLinhas(procedimentos);
+  const total = somarTotal(linhas);
 
   doc.setFontSize(16);
-  doc.text("Relatório de Procedimentos", 14, 18);
+  doc.text("Relatório de procedimentos", 14, 18);
   doc.setFontSize(10);
   doc.setTextColor(120);
   doc.text(`Gerado em ${new Date().toLocaleDateString("pt-BR")}`, 14, 24);
 
   autoTable(doc, {
     startY: 30,
-    head: [["Data", "Paciente", "Procedimento", "Local"]],
-    body: linhas.map((l) => [l.data, l.paciente, l.procedimento, l.local]),
+    head: [["Data", "Paciente", "Procedimento", "Local", "Valor"]],
+    body: linhas.map((l) => [
+      l.data,
+      l.paciente,
+      l.procedimento,
+      l.local,
+      typeof l.valor === "number" ? formatarReais(l.valor) : "—",
+    ]),
+    foot: [["", "", "", "Total", formatarReais(total)]],
     headStyles: { fillColor: [169, 222, 210], textColor: [31, 74, 64] },
+    footStyles: { fillColor: [250, 247, 242], textColor: [43, 46, 51], fontStyle: "bold" },
     styles: { fontSize: 10 },
   });
 
@@ -51,6 +67,7 @@ export async function exportarPDF(procedimentos: Procedimento[]) {
 export async function exportarExcel(procedimentos: Procedimento[]) {
   const XLSX = await import("xlsx");
   const linhas = montarLinhas(procedimentos);
+  const total = somarTotal(linhas);
 
   const worksheet = XLSX.utils.json_to_sheet(
     linhas.map((l) => ({
@@ -58,13 +75,18 @@ export async function exportarExcel(procedimentos: Procedimento[]) {
       Paciente: l.paciente,
       Procedimento: l.procedimento,
       Local: l.local,
+      Valor: typeof l.valor === "number" ? l.valor : "",
     }))
   );
+  XLSX.utils.sheet_add_aoa(worksheet, [["", "", "", "Total", total]], {
+    origin: -1,
+  });
   worksheet["!cols"] = [
     { wch: 12 },
     { wch: 28 },
     { wch: 28 },
     { wch: 18 },
+    { wch: 14 },
   ];
 
   const workbook = XLSX.utils.book_new();

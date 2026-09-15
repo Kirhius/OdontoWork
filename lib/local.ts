@@ -1,4 +1,4 @@
-import { LocalProcedimento } from "./types";
+import { LocalProcedimento, TipoLocal } from "./types";
 
 export function descreverLocal(local: LocalProcedimento): string {
   switch (local.tipo) {
@@ -10,6 +10,19 @@ export function descreverLocal(local: LocalProcedimento): string {
       return "Arcada inferior";
     case "dente":
       return `Dente ${local.numero}`;
+  }
+}
+
+export function descreverTipoLocal(tipo: TipoLocal): string {
+  switch (tipo) {
+    case "boca_toda":
+      return "Boca toda";
+    case "arcada_superior":
+      return "Arcada superior";
+    case "arcada_inferior":
+      return "Arcada inferior";
+    case "dente":
+      return "Dente unitário";
   }
 }
 

@@ -1,9 +1,10 @@
-import { Observacao, Patient, Procedimento } from "./types";
+import { Observacao, Patient, PrecoProcedimento, Procedimento, TipoLocal } from "./types";
 
 const KEYS = {
   patients: "odontowork:patients",
   procedimentos: "odontowork:procedimentos",
   observacoes: "odontowork:observacoes",
+  precos: "odontowork:precos",
 };
 
 function read<T>(key: string): T[] {
@@ -116,4 +117,42 @@ export function deleteObservacao(id: string) {
     KEYS.observacoes,
     read<Observacao>(KEYS.observacoes).filter((o) => o.id !== id)
   );
+}
+
+// ---- Tabela de preços ----
+
+export function getPrecos(): PrecoProcedimento[] {
+  return read<PrecoProcedimento>(KEYS.precos).sort((a, b) =>
+    a.nome.localeCompare(b.nome, "pt-BR")
+  );
+}
+
+export function getPreco(nome: string, tipoLocal: TipoLocal): PrecoProcedimento | undefined {
+  const alvo = nome.trim().toLowerCase();
+  return read<PrecoProcedimento>(KEYS.precos).find(
+    (p) => p.nome.trim().toLowerCase() === alvo && p.tipoLocal === tipoLocal
+  );
+}
+
+export function addPreco(nome: string, tipoLocal: TipoLocal, valor: number): PrecoProcedimento {
+  const precos = read<PrecoProcedimento>(KEYS.precos);
+  const novo: PrecoProcedimento = { id: uid(), nome: nome.trim(), tipoLocal, valor };
+  write(KEYS.precos, [...precos, novo]);
+  return novo;
+}
+
+export function updatePreco(
+  id: string,
+  dados: { nome: string; tipoLocal: TipoLocal; valor: number }
+) {
+  write(
+    KEYS.precos,
+    read<PrecoProcedimento>(KEYS.precos).map((p) =>
+      p.id === id ? { ...p, nome: dados.nome.trim(), tipoLocal: dados.tipoLocal, valor: dados.valor } : p
+    )
+  );
+}
+
+export function deletePreco(id: string) {
+  write(KEYS.precos, read<PrecoProcedimento>(KEYS.precos).filter((p) => p.id !== id));
 }
