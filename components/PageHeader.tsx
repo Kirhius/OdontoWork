@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { ReactNode } from "react";
 
 export default function PageHeader({
   title,
   backHref,
+  action,
 }: {
   title: string;
   backHref: string;
+  action?: ReactNode;
 }) {
   return (
     <header className="flex items-center gap-3 mb-6">
@@ -26,7 +29,8 @@ export default function PageHeader({
           />
         </svg>
       </Link>
-      <h1 className="font-display text-xl text-ink">{title}</h1>
+      <h1 className="font-display text-xl text-ink flex-1">{title}</h1>
+      {action}
     </header>
   );
 }

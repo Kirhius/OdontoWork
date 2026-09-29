@@ -1,10 +1,11 @@
-import { Observacao, Patient, PrecoProcedimento, Procedimento, TipoLocal } from "./types";
+import { LancamentoFinanceiro, Observacao, Patient, PrecoProcedimento, Procedimento, TipoLocal } from "./types";
 
 const KEYS = {
   patients: "odontowork:patients",
   procedimentos: "odontowork:procedimentos",
   observacoes: "odontowork:observacoes",
   precos: "odontowork:precos",
+  lancamentos: "odontowork:lancamentos",
 };
 
 function read<T>(key: string): T[] {
@@ -155,4 +156,48 @@ export function updatePreco(
 
 export function deletePreco(id: string) {
   write(KEYS.precos, read<PrecoProcedimento>(KEYS.precos).filter((p) => p.id !== id));
+}
+
+// ---- Lançamentos financeiros ----
+
+export function getLancamentos(): LancamentoFinanceiro[] {
+  return read<LancamentoFinanceiro>(KEYS.lancamentos).sort((a, b) =>
+    a.data < b.data ? 1 : -1
+  );
+}
+
+export function getLancamento(id: string): LancamentoFinanceiro | undefined {
+  return read<LancamentoFinanceiro>(KEYS.lancamentos).find((l) => l.id === id);
+}
+
+export function addLancamento(
+  dados: Omit<LancamentoFinanceiro, "id" | "criadoEm">
+): LancamentoFinanceiro {
+  const lancamentos = read<LancamentoFinanceiro>(KEYS.lancamentos);
+  const novo: LancamentoFinanceiro = {
+    ...dados,
+    id: uid(),
+    criadoEm: new Date().toISOString(),
+  };
+  write(KEYS.lancamentos, [...lancamentos, novo]);
+  return novo;
+}
+
+export function updateLancamento(
+  id: string,
+  dados: Omit<LancamentoFinanceiro, "id" | "criadoEm">
+) {
+  write(
+    KEYS.lancamentos,
+    read<LancamentoFinanceiro>(KEYS.lancamentos).map((l) =>
+      l.id === id ? { ...l, ...dados } : l
+    )
+  );
+}
+
+export function deleteLancamento(id: string) {
+  write(
+    KEYS.lancamentos,
+    read<LancamentoFinanceiro>(KEYS.lancamentos).filter((l) => l.id !== id)
+  );
 }

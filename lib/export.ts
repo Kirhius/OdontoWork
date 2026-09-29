@@ -1,4 +1,4 @@
-import { Procedimento } from "./types";
+import { LancamentoFinanceiro, Procedimento } from "./types";
 import { descreverLocal } from "./local";
 import { getPatient } from "./storage";
 import { formatarReais } from "./moeda";
@@ -92,4 +92,43 @@ export async function exportarExcel(procedimentos: Procedimento[]) {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Procedimentos");
   XLSX.writeFile(workbook, `odontowork-relatorio-${Date.now()}.xlsx`);
+}
+
+function formatarDataLancamento(iso: string): string {
+  const [ano, mes, dia] = iso.split("-");
+  if (!ano || !mes || !dia) return iso;
+  return `${dia}/${mes}/${ano}`;
+}
+
+export async function exportarFinanceiroPDF(lancamentos: LancamentoFinanceiro[]) {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+
+  const doc = new jsPDF();
+  const totalComissao = lancamentos.reduce((soma, l) => soma + l.comissao, 0);
+  const totalValor = lancamentos.reduce((soma, l) => soma + l.valorTotal, 0);
+
+  doc.setFontSize(16);
+  doc.text("Relatório financeiro", 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(`Gerado em ${new Date().toLocaleDateString("pt-BR")}`, 14, 24);
+
+  autoTable(doc, {
+    startY: 30,
+    head: [["Data", "Paciente", "Valor total", "%", "Comissão"]],
+    body: lancamentos.map((l) => [
+      formatarDataLancamento(l.data),
+      l.pacienteNome,
+      formatarReais(l.valorTotal),
+      `${l.percentual}%`,
+      formatarReais(l.comissao),
+    ]),
+    foot: [["", "", formatarReais(totalValor), "Total", formatarReais(totalComissao)]],
+    headStyles: { fillColor: [174, 203, 234], textColor: [30, 58, 92] },
+    footStyles: { fillColor: [250, 247, 242], textColor: [43, 46, 51], fontStyle: "bold" },
+    styles: { fontSize: 10 },
+  });
+
+  doc.save(`odontowork-financeiro-${Date.now()}.pdf`);
 }

@@ -35,3 +35,13 @@ export interface PrecoProcedimento {
   tipoLocal: TipoLocal;
   valor: number;
 }
+
+export interface LancamentoFinanceiro {
+  id: string;
+  pacienteNome: string;
+  valorTotal: number;
+  percentual: number; // ex.: 2.5 significa 2,5%
+  comissao: number; // valorTotal * percentual / 100, calculado no momento do lançamento
+  data: string; // YYYY-MM-DD, informada pelo usuário
+  criadoEm: string; // ISO
+}
