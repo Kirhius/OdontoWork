@@ -1,23 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { getProcedimentos, getPatient } from "@/lib/storage";
+import { getClinicas, getPatient, getProcedimentos } from "@/lib/storage";
 import { descreverLocal } from "@/lib/local";
-import { Procedimento } from "@/lib/types";
+import { formatarDataBR } from "@/lib/data";
+import { Clinica, Procedimento } from "@/lib/types";
 import { exportarExcel, exportarPDF } from "@/lib/export";
 
 export default function RelatoriosPage() {
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
   const [procedimento, setProcedimento] = useState("");
+  const [clinicaId, setClinicaId] = useState("");
+  const [clinicas, setClinicas] = useState<Clinica[]>([]);
   const [resultado, setResultado] = useState<Procedimento[] | null>(null);
   const [exportando, setExportando] = useState<"pdf" | "xlsx" | null>(null);
+
+  useEffect(() => {
+    setClinicas(getClinicas());
+  }, []);
 
   function visualizar() {
     let lista = getProcedimentos();
     if (de) lista = lista.filter((p) => p.data >= de);
     if (ate) lista = lista.filter((p) => p.data <= ate);
+    if (clinicaId) lista = lista.filter((p) => p.clinicaId === clinicaId);
     if (procedimento.trim()) {
       const termo = procedimento.trim().toLowerCase();
       lista = lista.filter((p) => p.nome.toLowerCase().includes(termo));
@@ -51,6 +59,24 @@ export default function RelatoriosPage() {
             <input type="date" className="field-input" value={ate} onChange={(e) => setAte(e.target.value)} />
           </div>
         </div>
+
+        {clinicas.length > 0 && (
+          <div>
+            <label className="field-label">Clínica (opcional)</label>
+            <select
+              className="field-input"
+              value={clinicaId}
+              onChange={(e) => setClinicaId(e.target.value)}
+            >
+              <option value="">Todas as clínicas</option>
+              {clinicas.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="field-label">Procedimento (opcional)</label>
@@ -99,6 +125,7 @@ export default function RelatoriosPage() {
                     <p className="text-xs text-muted mt-0.5">
                       {getPatient(p.patientId)?.nome ?? "Paciente removido"} · {formatarDataBR(p.data)} ·{" "}
                       {descreverLocal(p.local)}
+                      {p.clinicaNome ? ` · ${p.clinicaNome}` : ""}
                     </p>
                   </li>
                 ))}
@@ -109,9 +136,4 @@ export default function RelatoriosPage() {
       )}
     </div>
   );
-}
-
-function formatarDataBR(iso: string) {
-  const [ano, mes, dia] = iso.split("-");
-  return `${dia}/${mes}/${ano}`;
 }

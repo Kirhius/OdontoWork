@@ -4,25 +4,27 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import DeleteButton from "@/components/DeleteButton";
+import CamposProcedimento, { FormProcedimento, novoForm } from "@/components/CamposProcedimento";
 import {
   addObservacao,
   addProcedimento,
   deleteObservacao,
   deletePatient,
   deleteProcedimento,
+  getClinicas,
   getObservacoes,
   getPatient,
   getPreco,
+  getPrecos,
   getProcedimentos,
+  getUltimaClinicaId,
+  setUltimaClinicaId,
 } from "@/lib/storage";
-import { Observacao, Patient, Procedimento, LocalProcedimento } from "@/lib/types";
-import { descreverLocal, DENTES_FDI } from "@/lib/local";
+import { Clinica, Observacao, Patient, Procedimento } from "@/lib/types";
+import { descreverLocal, montarLocal } from "@/lib/local";
+import { formatarDataBR, hojeISO, rotuloMes } from "@/lib/data";
 
 type Aba = "procedimentos" | "observacoes";
-
-function hojeISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export default function PacientePage() {
   const { id } = useParams<{ id: string }>();
@@ -89,116 +91,163 @@ export default function PacientePage() {
   );
 }
 
+interface GrupoMes {
+  chave: string; // YYYY-MM
+  rotulo: string;
+  itens: Procedimento[];
+}
+
+// A lista já chega ordenada do mais recente para o mais antigo.
+function agruparPorMes(lista: Procedimento[]): GrupoMes[] {
+  const grupos: GrupoMes[] = [];
+  for (const p of lista) {
+    const chave = p.data.slice(0, 7);
+    const atual = grupos[grupos.length - 1];
+    if (atual && atual.chave === chave) {
+      atual.itens.push(p);
+    } else {
+      grupos.push({ chave, rotulo: rotuloMes(chave), itens: [p] });
+    }
+  }
+  return grupos;
+}
+
 function ProcedimentosTab({ patientId }: { patientId: string }) {
   const [lista, setLista] = useState<Procedimento[]>([]);
-  const [nome, setNome] = useState("");
-  const [data, setData] = useState(hojeISO());
-  const [tipoLocal, setTipoLocal] = useState<LocalProcedimento["tipo"]>("boca_toda");
-  const [numeroDente, setNumeroDente] = useState(DENTES_FDI[0]);
+  const [form, setForm] = useState<FormProcedimento>(novoForm());
+  const [clinicas, setClinicas] = useState<Clinica[]>([]);
+  const [sugestoes, setSugestoes] = useState<string[]>([]);
+  // Gavetas: por padrão só o mês mais recente fica aberto.
+  const [abertos, setAbertos] = useState<Record<string, boolean>>({});
 
   function carregar() {
     setLista(getProcedimentos(patientId));
   }
 
-  useEffect(carregar, [patientId]);
+  useEffect(() => {
+    carregar();
+    const todas = getClinicas();
+    setClinicas(todas);
+    setSugestoes(Array.from(new Set(getPrecos().map((p) => p.nome))));
+
+    const ultima = getUltimaClinicaId();
+    setForm((f) => ({
+      ...f,
+      data: hojeISO(),
+      clinicaId: todas.some((c) => c.id === ultima) ? ultima : "",
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId]);
 
   function handleConcluir() {
-    if (!nome.trim()) return;
-    const local: LocalProcedimento =
-      tipoLocal === "dente" ? { tipo: "dente", numero: numeroDente } : { tipo: tipoLocal };
+    if (!form.nome.trim()) return;
 
-    // Busca o valor cadastrado na tabela de preços (Configurações > Procedimentos).
-    // Esse valor não aparece aqui — só é usado depois nos relatórios.
-    const preco = getPreco(nome, tipoLocal);
+    const clinica = clinicas.find((c) => c.id === form.clinicaId);
+    // Valor vem da tabela de preços e só aparece nos relatórios.
+    const preco = getPreco(form.nome, form.tipoLocal);
 
-    addProcedimento({ patientId, nome: nome.trim(), data, local, valor: preco?.valor });
-    setNome("");
+    addProcedimento({
+      patientId,
+      nome: form.nome.trim(),
+      local: montarLocal(form.tipoLocal, form.numeroDente),
+      data: form.data || hojeISO(),
+      valor: preco?.valor,
+      clinicaId: clinica?.id,
+      clinicaNome: clinica?.nome,
+    });
+
+    setUltimaClinicaId(form.clinicaId);
+    setForm((f) => ({ ...f, nome: "" }));
     carregar();
   }
 
+  const grupos = agruparPorMes(lista);
+
   return (
     <div>
-      <div className="flex flex-col gap-4 mb-6">
-        <div>
-          <label className="field-label">Procedimento</label>
-          <input
-            className="field-input"
-            placeholder="Ex.: Restauração, Limpeza..."
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-          />
-        </div>
+      <div className="flex flex-col gap-4 mb-7">
+        <CamposProcedimento
+          value={form}
+          onChange={setForm}
+          clinicas={clinicas}
+          sugestoes={sugestoes}
+        />
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="field-label">Local</label>
-            <select
-              className="field-input"
-              value={tipoLocal}
-              onChange={(e) => setTipoLocal(e.target.value as LocalProcedimento["tipo"])}
-            >
-              <option value="boca_toda">Boca toda</option>
-              <option value="arcada_superior">Arcada superior</option>
-              <option value="arcada_inferior">Arcada inferior</option>
-              <option value="dente">Dente específico</option>
-            </select>
-          </div>
-          <div>
-            <label className="field-label">Data</label>
-            <input
-              type="date"
-              className="field-input"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {tipoLocal === "dente" && (
-          <div>
-            <label className="field-label">Número do dente (FDI)</label>
-            <select
-              className="field-input"
-              value={numeroDente}
-              onChange={(e) => setNumeroDente(e.target.value)}
-            >
-              {DENTES_FDI.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <button onClick={handleConcluir} className="primary-btn" disabled={!nome.trim()}>
+        <button onClick={handleConcluir} className="primary-btn" disabled={!form.nome.trim()}>
           Concluir
         </button>
       </div>
 
-      {lista.length === 0 ? (
+      {grupos.length === 0 ? (
         <p className="text-sm text-muted text-center mt-6">
           Nenhum procedimento lançado ainda.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2.5">
-          {lista.map((p) => (
-            <li key={p.id} className="list-card flex items-start justify-between gap-3">
-              <div>
-                <p className="font-medium">{p.nome}</p>
-                <p className="text-xs text-muted mt-0.5">
-                  {formatarDataBR(p.data)} · {descreverLocal(p.local)}
-                </p>
-              </div>
-              <DeleteButton
-                onConfirm={() => {
-                  deleteProcedimento(p.id);
-                  carregar();
-                }}
-              />
-            </li>
-          ))}
-        </ul>
+        <div>
+          <h2 className="text-sm font-medium text-muted mb-2.5">Histórico por mês</h2>
+          <div className="flex flex-col gap-2.5">
+            {grupos.map((g, i) => {
+              const aberto = abertos[g.chave] ?? i === 0;
+              return (
+                <section
+                  key={g.chave}
+                  className="rounded-xl border border-line bg-surface overflow-hidden"
+                >
+                  <button
+                    onClick={() => setAbertos((a) => ({ ...a, [g.chave]: !aberto }))}
+                    aria-expanded={aberto}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left"
+                  >
+                    <span className="font-medium">{g.rotulo}</span>
+                    <span className="flex items-center gap-2 text-xs text-muted shrink-0">
+                      {g.itens.length} {g.itens.length === 1 ? "procedimento" : "procedimentos"}
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className={`transition-transform ${aberto ? "rotate-90" : ""}`}
+                      >
+                        <path
+                          d="M9 6l6 6-6 6"
+                          stroke="currentColor"
+                          strokeWidth="1.7"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                  </button>
+
+                  {aberto && (
+                    <ul className="flex flex-col gap-2 px-3 pb-3">
+                      {g.itens.map((p) => (
+                        <li
+                          key={p.id}
+                          className="rounded-lg bg-bg px-3 py-3 flex items-start justify-between gap-3"
+                        >
+                          <div>
+                            <p className="font-medium">{p.nome}</p>
+                            <p className="text-xs text-muted mt-0.5">
+                              {formatarDataBR(p.data)} · {descreverLocal(p.local)}
+                              {p.clinicaNome ? ` · ${p.clinicaNome}` : ""}
+                            </p>
+                          </div>
+                          <DeleteButton
+                            onConfirm={() => {
+                              deleteProcedimento(p.id);
+                              carregar();
+                            }}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -259,11 +308,6 @@ function ObservacoesTab({ patientId }: { patientId: string }) {
       )}
     </div>
   );
-}
-
-function formatarDataBR(iso: string) {
-  const [ano, mes, dia] = iso.split("-");
-  return `${dia}/${mes}/${ano}`;
 }
 
 function formatarDataHoraBR(iso: string) {

@@ -4,18 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import DeleteButton from "@/components/DeleteButton";
+import ArchiveButton from "@/components/ArchiveButton";
 import {
   addLancamento,
   deleteLancamento,
   getLancamentos,
+  setLancamentoArquivado,
   updateLancamento,
 } from "@/lib/storage";
 import { LancamentoFinanceiro } from "@/lib/types";
 import { formatarReais } from "@/lib/moeda";
-
-function hojeISO() {
-  return new Date().toISOString().slice(0, 10);
-}
+import { formatarDataBR, hojeISO } from "@/lib/data";
 
 function paraNumero(texto: string): number {
   const n = Number(texto.replace(",", "."));
@@ -29,17 +28,23 @@ export default function FinanceiroPage() {
   const [pacienteNome, setPacienteNome] = useState("");
   const [valorTotal, setValorTotal] = useState("");
   const [percentual, setPercentual] = useState("");
-  const [data, setData] = useState(hojeISO());
+  const [data, setData] = useState("");
 
   function carregar() {
     setLista(getLancamentos());
   }
 
-  useEffect(carregar, []);
+  useEffect(() => {
+    carregar();
+    setData(hojeISO());
+  }, []);
 
   const valorNum = paraNumero(valorTotal);
   const percentualNum = paraNumero(percentual);
   const comissao = valorNum * (percentualNum / 100);
+
+  const arquivados = lista.filter((l) => l.arquivado);
+  const ativos = lista.filter((l) => !l.arquivado);
 
   function limparForm() {
     setPacienteNome("");
@@ -75,6 +80,42 @@ export default function FinanceiroPage() {
     setValorTotal(String(l.valorTotal));
     setPercentual(String(l.percentual));
     setData(l.data);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function renderItem(l: LancamentoFinanceiro) {
+    return (
+      <li
+        key={l.id}
+        className={`rounded-xl border px-4 py-3.5 flex items-start justify-between gap-3 ${
+          l.arquivado ? "border-line bg-bg" : "border-line bg-surface"
+        }`}
+      >
+        <button onClick={() => handleEditar(l)} className="text-left flex-1 min-w-0">
+          <p className="font-medium">{l.pacienteNome}</p>
+          <p className="text-xs text-muted mt-0.5">
+            {formatarDataBR(l.data)} · {formatarReais(l.valorTotal)} · {l.percentual}%
+          </p>
+          <p className="text-sm text-mint-ink mt-1">{formatarReais(l.comissao)}</p>
+        </button>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <ArchiveButton
+            arquivado={!!l.arquivado}
+            onClick={() => {
+              setLancamentoArquivado(l.id, !l.arquivado);
+              carregar();
+            }}
+          />
+          <DeleteButton
+            onConfirm={() => {
+              deleteLancamento(l.id);
+              if (editandoId === l.id) limparForm();
+              carregar();
+            }}
+          />
+        </div>
+      </li>
+    );
   }
 
   return (
@@ -92,7 +133,7 @@ export default function FinanceiroPage() {
         }
       />
 
-      <div className="flex flex-col gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-7">
         <div>
           <label className="field-label">Paciente</label>
           <input
@@ -161,37 +202,27 @@ export default function FinanceiroPage() {
         </div>
       </div>
 
-      {lista.length === 0 ? (
-        <p className="text-sm text-muted text-center mt-6">
-          Nenhum lançamento ainda.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2.5">
-          {lista.map((l) => (
-            <li key={l.id} className="list-card flex items-start justify-between gap-3">
-              <button onClick={() => handleEditar(l)} className="text-left flex-1">
-                <p className="font-medium">{l.pacienteNome}</p>
-                <p className="text-xs text-muted mt-0.5">
-                  {formatarDataBR(l.data)} · {formatarReais(l.valorTotal)} · {l.percentual}%
-                </p>
-                <p className="text-sm text-mint-ink mt-1">{formatarReais(l.comissao)}</p>
-              </button>
-              <DeleteButton
-                onConfirm={() => {
-                  deleteLancamento(l.id);
-                  if (editandoId === l.id) limparForm();
-                  carregar();
-                }}
-              />
-            </li>
-          ))}
-        </ul>
+      {arquivados.length > 0 && (
+        <section className="mb-7">
+          <h2 className="text-sm font-medium text-muted mb-2.5">
+            Arquivados ({arquivados.length})
+          </h2>
+          <ul className="flex flex-col gap-2.5">{arquivados.map(renderItem)}</ul>
+        </section>
       )}
+
+      <section>
+        {lista.length > 0 && (
+          <h2 className="text-sm font-medium text-muted mb-2.5">Lançamentos</h2>
+        )}
+        {ativos.length === 0 ? (
+          <p className="text-sm text-muted text-center mt-6">
+            {lista.length === 0 ? "Nenhum lançamento ainda." : "Nenhum lançamento ativo."}
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2.5">{ativos.map(renderItem)}</ul>
+        )}
+      </section>
     </div>
   );
-}
-
-function formatarDataBR(iso: string) {
-  const [ano, mes, dia] = iso.split("-");
-  return `${dia}/${mes}/${ano}`;
 }

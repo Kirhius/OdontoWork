@@ -26,6 +26,10 @@ export function descreverTipoLocal(tipo: TipoLocal): string {
   }
 }
 
+export function montarLocal(tipo: TipoLocal, numeroDente: string): LocalProcedimento {
+  return tipo === "dente" ? { tipo: "dente", numero: numeroDente } : { tipo };
+}
+
 // Numeração FDI (padrão odontológico) para o seletor de dente específico
 export const DENTES_FDI: string[] = [
   ...[18, 17, 16, 15, 14, 13, 12, 11].map(String),

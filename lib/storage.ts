@@ -1,4 +1,12 @@
-import { LancamentoFinanceiro, Observacao, Patient, PrecoProcedimento, Procedimento, TipoLocal } from "./types";
+import {
+  Clinica,
+  LancamentoFinanceiro,
+  Observacao,
+  Patient,
+  PrecoProcedimento,
+  Procedimento,
+  TipoLocal,
+} from "./types";
 
 const KEYS = {
   patients: "odontowork:patients",
@@ -6,6 +14,8 @@ const KEYS = {
   observacoes: "odontowork:observacoes",
   precos: "odontowork:precos",
   lancamentos: "odontowork:lancamentos",
+  clinicas: "odontowork:clinicas",
+  ultimaClinica: "odontowork:ultima-clinica",
 };
 
 function read<T>(key: string): T[] {
@@ -37,6 +47,13 @@ export function getPatients(): Patient[] {
 
 export function getPatient(id: string): Patient | undefined {
   return read<Patient>(KEYS.patients).find((p) => p.id === id);
+}
+
+export function findPatientByName(nome: string): Patient | undefined {
+  const alvo = nome.trim().toLowerCase();
+  return read<Patient>(KEYS.patients).find(
+    (p) => p.nome.trim().toLowerCase() === alvo
+  );
 }
 
 export function addPatient(nome: string): Patient {
@@ -200,4 +217,56 @@ export function deleteLancamento(id: string) {
     KEYS.lancamentos,
     read<LancamentoFinanceiro>(KEYS.lancamentos).filter((l) => l.id !== id)
   );
+}
+
+export function setLancamentoArquivado(id: string, arquivado: boolean) {
+  write(
+    KEYS.lancamentos,
+    read<LancamentoFinanceiro>(KEYS.lancamentos).map((l) =>
+      l.id === id ? { ...l, arquivado } : l
+    )
+  );
+}
+
+// ---- Clínicas ----
+
+export function getClinicas(): Clinica[] {
+  return read<Clinica>(KEYS.clinicas).sort((a, b) =>
+    a.nome.localeCompare(b.nome, "pt-BR")
+  );
+}
+
+export function addClinica(nome: string): Clinica {
+  const clinicas = read<Clinica>(KEYS.clinicas);
+  const nova: Clinica = {
+    id: uid(),
+    nome: nome.trim(),
+    criadoEm: new Date().toISOString(),
+  };
+  write(KEYS.clinicas, [...clinicas, nova]);
+  return nova;
+}
+
+// Procedimentos já lançados guardam o nome da clínica (clinicaNome),
+// então excluir uma clínica não apaga o histórico.
+export function deleteClinica(id: string) {
+  write(KEYS.clinicas, read<Clinica>(KEYS.clinicas).filter((c) => c.id !== id));
+}
+
+export function getUltimaClinicaId(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(KEYS.ultimaClinica) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function setUltimaClinicaId(id: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(KEYS.ultimaClinica, id);
+  } catch {
+    // sem problema: é só uma conveniência
+  }
 }

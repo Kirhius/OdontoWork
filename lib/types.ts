@@ -20,6 +20,8 @@ export interface Procedimento {
   data: string; // YYYY-MM-DD, informada pelo usuário
   criadoEm: string; // ISO, quando foi lançado
   valor?: number; // snapshot da tabela de preços no momento do lançamento (uso interno, só aparece no relatório)
+  clinicaId?: string;
+  clinicaNome?: string; // snapshot do nome, para não perder o histórico se a clínica for excluída
 }
 
 export interface Observacao {
@@ -43,5 +45,12 @@ export interface LancamentoFinanceiro {
   percentual: number; // ex.: 2.5 significa 2,5%
   comissao: number; // valorTotal * percentual / 100, calculado no momento do lançamento
   data: string; // YYYY-MM-DD, informada pelo usuário
+  criadoEm: string; // ISO
+  arquivado?: boolean;
+}
+
+export interface Clinica {
+  id: string;
+  nome: string;
   criadoEm: string; // ISO
 }

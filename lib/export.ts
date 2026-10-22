@@ -2,29 +2,26 @@ import { LancamentoFinanceiro, Procedimento } from "./types";
 import { descreverLocal } from "./local";
 import { getPatient } from "./storage";
 import { formatarReais } from "./moeda";
+import { formatarDataBR } from "./data";
 
 interface LinhaRelatorio {
   data: string;
   paciente: string;
   procedimento: string;
   local: string;
+  clinica: string;
   valor: number | undefined;
 }
 
 function montarLinhas(procedimentos: Procedimento[]): LinhaRelatorio[] {
   return procedimentos.map((p) => ({
-    data: formatarData(p.data),
+    data: formatarDataBR(p.data),
     paciente: getPatient(p.patientId)?.nome ?? "Paciente removido",
     procedimento: p.nome,
     local: descreverLocal(p.local),
+    clinica: p.clinicaNome ?? "—",
     valor: p.valor,
   }));
-}
-
-function formatarData(iso: string): string {
-  const [ano, mes, dia] = iso.split("-");
-  if (!ano || !mes || !dia) return iso;
-  return `${dia}/${mes}/${ano}`;
 }
 
 function somarTotal(linhas: LinhaRelatorio[]): number {
@@ -47,18 +44,19 @@ export async function exportarPDF(procedimentos: Procedimento[]) {
 
   autoTable(doc, {
     startY: 30,
-    head: [["Data", "Paciente", "Procedimento", "Local", "Valor"]],
+    head: [["Data", "Paciente", "Procedimento", "Local", "Clínica", "Valor"]],
     body: linhas.map((l) => [
       l.data,
       l.paciente,
       l.procedimento,
       l.local,
+      l.clinica,
       typeof l.valor === "number" ? formatarReais(l.valor) : "—",
     ]),
-    foot: [["", "", "", "Total", formatarReais(total)]],
+    foot: [["", "", "", "", "Total", formatarReais(total)]],
     headStyles: { fillColor: [169, 222, 210], textColor: [31, 74, 64] },
     footStyles: { fillColor: [250, 247, 242], textColor: [43, 46, 51], fontStyle: "bold" },
-    styles: { fontSize: 10 },
+    styles: { fontSize: 9 },
   });
 
   doc.save(`odontowork-relatorio-${Date.now()}.pdf`);
@@ -75,10 +73,11 @@ export async function exportarExcel(procedimentos: Procedimento[]) {
       Paciente: l.paciente,
       Procedimento: l.procedimento,
       Local: l.local,
+      Clínica: l.clinica,
       Valor: typeof l.valor === "number" ? l.valor : "",
     }))
   );
-  XLSX.utils.sheet_add_aoa(worksheet, [["", "", "", "Total", total]], {
+  XLSX.utils.sheet_add_aoa(worksheet, [["", "", "", "", "Total", total]], {
     origin: -1,
   });
   worksheet["!cols"] = [
@@ -86,18 +85,13 @@ export async function exportarExcel(procedimentos: Procedimento[]) {
     { wch: 28 },
     { wch: 28 },
     { wch: 18 },
+    { wch: 22 },
     { wch: 14 },
   ];
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Procedimentos");
   XLSX.writeFile(workbook, `odontowork-relatorio-${Date.now()}.xlsx`);
-}
-
-function formatarDataLancamento(iso: string): string {
-  const [ano, mes, dia] = iso.split("-");
-  if (!ano || !mes || !dia) return iso;
-  return `${dia}/${mes}/${ano}`;
 }
 
 export async function exportarFinanceiroPDF(lancamentos: LancamentoFinanceiro[]) {
@@ -118,7 +112,7 @@ export async function exportarFinanceiroPDF(lancamentos: LancamentoFinanceiro[])
     startY: 30,
     head: [["Data", "Paciente", "Valor total", "%", "Comissão"]],
     body: lancamentos.map((l) => [
-      formatarDataLancamento(l.data),
+      formatarDataBR(l.data),
       l.pacienteNome,
       formatarReais(l.valorTotal),
       `${l.percentual}%`,

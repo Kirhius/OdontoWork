@@ -21,6 +21,11 @@ export default function ConfiguracoesPage() {
           <IconFinanceiro />
           <span className="font-display text-lg">Financeiro</span>
         </Link>
+
+        <Link href="/configuracoes/adicionais" className="home-btn bg-coral text-coral-ink">
+          <IconAdicionais />
+          <span className="font-display text-lg">Adicionais</span>
+        </Link>
       </nav>
     </div>
   );
@@ -50,6 +55,17 @@ function IconFinanceiro() {
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
       <circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="1.7" />
       <path d="M12 8v8M14.3 9.8c0-.9-1-1.6-2.3-1.6-1.4 0-2.4.8-2.4 1.8 0 2.6 4.7 1.3 4.7 3.9 0 1-1 1.8-2.4 1.8-1.3 0-2.3-.7-2.3-1.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconAdicionais() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <rect x="4.5" y="4.5" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="13.5" y="4.5" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="4.5" y="13.5" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M16.5 13.5v6M13.5 16.5h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }
