@@ -1,6 +1,6 @@
 import { LancamentoFinanceiro, Procedimento } from "./types";
 import { descreverLocal } from "./local";
-import { getPatient } from "./storage";
+import { getPatient, getValorProcedimento } from "./storage";
 import { formatarReais } from "./moeda";
 import { formatarDataBR } from "./data";
 
@@ -20,7 +20,7 @@ function montarLinhas(procedimentos: Procedimento[]): LinhaRelatorio[] {
     procedimento: p.nome,
     local: descreverLocal(p.local),
     clinica: p.clinicaNome ?? "—",
-    valor: p.valor,
+    valor: getValorProcedimento(p),
   }));
 }
 

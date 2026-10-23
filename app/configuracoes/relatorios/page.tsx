@@ -2,19 +2,27 @@
 
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { getClinicas, getPatient, getProcedimentos } from "@/lib/storage";
+import { getClinicas, getPatient, getProcedimentos, getValorProcedimento } from "@/lib/storage";
 import { descreverLocal } from "@/lib/local";
 import { formatarDataBR } from "@/lib/data";
+import { formatarReais } from "@/lib/moeda";
 import { Clinica, Procedimento } from "@/lib/types";
 import { exportarExcel, exportarPDF } from "@/lib/export";
+
+interface LinhaResultado {
+  proc: Procedimento;
+  paciente: string;
+  valor: number | undefined;
+}
 
 export default function RelatoriosPage() {
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
   const [procedimento, setProcedimento] = useState("");
   const [clinicaId, setClinicaId] = useState("");
+  const [pago, setPago] = useState(false);
   const [clinicas, setClinicas] = useState<Clinica[]>([]);
-  const [resultado, setResultado] = useState<Procedimento[] | null>(null);
+  const [resultado, setResultado] = useState<LinhaResultado[] | null>(null);
   const [exportando, setExportando] = useState<"pdf" | "xlsx" | null>(null);
 
   useEffect(() => {
@@ -30,19 +38,32 @@ export default function RelatoriosPage() {
       const termo = procedimento.trim().toLowerCase();
       lista = lista.filter((p) => p.nome.toLowerCase().includes(termo));
     }
-    setResultado(lista);
+    // Desmarcado: só os pendentes. Marcado: só os já pagos.
+    lista = lista.filter((p) => !!p.pago === pago);
+
+    setResultado(
+      lista.map((proc) => ({
+        proc,
+        paciente: getPatient(proc.patientId)?.nome ?? "Paciente removido",
+        valor: getValorProcedimento(proc),
+      }))
+    );
   }
 
   async function handleExport(formato: "pdf" | "xlsx") {
     if (!resultado || resultado.length === 0) return;
     setExportando(formato);
     try {
-      if (formato === "pdf") await exportarPDF(resultado);
-      else await exportarExcel(resultado);
+      const procs = resultado.map((r) => r.proc);
+      if (formato === "pdf") await exportarPDF(procs);
+      else await exportarExcel(procs);
     } finally {
       setExportando(null);
     }
   }
+
+  const total = resultado?.reduce((soma, r) => soma + (r.valor ?? 0), 0) ?? 0;
+  const semValor = resultado?.filter((r) => r.valor === undefined).length ?? 0;
 
   return (
     <div>
@@ -88,6 +109,21 @@ export default function RelatoriosPage() {
           />
         </div>
 
+        <label className="flex items-start gap-3 rounded-xl border border-line bg-surface px-4 py-3">
+          <input
+            type="checkbox"
+            className="mt-1 h-4 w-4"
+            checked={pago}
+            onChange={(e) => setPago(e.target.checked)}
+          />
+          <span>
+            <span className="block text-sm font-medium">Pago</span>
+            <span className="block text-xs text-muted">
+              Desmarcado mostra só os pendentes. Marcado mostra só os já pagos.
+            </span>
+          </span>
+        </label>
+
         <button onClick={visualizar} className="primary-btn">
           Visualizar
         </button>
@@ -101,6 +137,21 @@ export default function RelatoriosPage() {
             </p>
           ) : (
             <>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <p className="text-sm text-muted">
+                  {resultado.length} {resultado.length === 1 ? "procedimento" : "procedimentos"} ·
+                  Total <span className="font-medium text-ink">{formatarReais(total)}</span>
+                </p>
+              </div>
+
+              {semValor > 0 && (
+                <p className="text-xs text-coral-ink bg-coral/20 rounded-lg px-3 py-2 mb-3">
+                  {semValor} {semValor === 1 ? "procedimento está" : "procedimentos estão"} sem valor
+                  cadastrado na tabela da clínica e não entram no total. Cadastre em Configurações &gt;
+                  Procedimentos.
+                </p>
+              )}
+
               <div className="flex gap-3 mb-4">
                 <button
                   onClick={() => handleExport("pdf")}
@@ -119,13 +170,21 @@ export default function RelatoriosPage() {
               </div>
 
               <ul className="flex flex-col gap-2.5">
-                {resultado.map((p) => (
-                  <li key={p.id} className="list-card">
-                    <p className="font-medium">{p.nome}</p>
-                    <p className="text-xs text-muted mt-0.5">
-                      {getPatient(p.patientId)?.nome ?? "Paciente removido"} · {formatarDataBR(p.data)} ·{" "}
-                      {descreverLocal(p.local)}
-                      {p.clinicaNome ? ` · ${p.clinicaNome}` : ""}
+                {resultado.map(({ proc, paciente, valor }) => (
+                  <li key={proc.id} className="list-card flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">{proc.nome}</p>
+                      <p className="text-xs text-muted mt-0.5">
+                        {paciente} · {formatarDataBR(proc.data)} · {descreverLocal(proc.local)}
+                        {proc.clinicaNome ? ` · ${proc.clinicaNome}` : ""}
+                      </p>
+                    </div>
+                    <p
+                      className={`text-sm shrink-0 ${
+                        valor === undefined ? "text-muted" : "text-mint-ink font-medium"
+                      }`}
+                    >
+                      {valor === undefined ? "sem valor" : formatarReais(valor)}
                     </p>
                   </li>
                 ))}

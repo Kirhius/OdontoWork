@@ -22,6 +22,11 @@ export default function ConfiguracoesPage() {
           <span className="font-display text-lg">Financeiro</span>
         </Link>
 
+        <Link href="/configuracoes/arquivados" className="home-btn bg-sand text-sand-ink">
+          <IconArquivados />
+          <span className="font-display text-lg">Arquivados</span>
+        </Link>
+
         <Link href="/configuracoes/adicionais" className="home-btn bg-coral text-coral-ink">
           <IconAdicionais />
           <span className="font-display text-lg">Adicionais</span>
@@ -66,6 +71,16 @@ function IconAdicionais() {
       <rect x="13.5" y="4.5" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
       <rect x="4.5" y="13.5" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
       <path d="M16.5 13.5v6M13.5 16.5h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconArquivados() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <rect x="3.5" y="5" width="17" height="4.5" rx="1.2" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M5 9.5V18a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 18V9.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 13h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }

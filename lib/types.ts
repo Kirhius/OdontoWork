@@ -2,6 +2,7 @@ export interface Patient {
   id: string;
   nome: string;
   criadoEm: string; // ISO
+  arquivado?: boolean;
 }
 
 export type TipoLocal = "boca_toda" | "arcada_superior" | "arcada_inferior" | "dente";
@@ -19,9 +20,9 @@ export interface Procedimento {
   local: LocalProcedimento;
   data: string; // YYYY-MM-DD, informada pelo usuário
   criadoEm: string; // ISO, quando foi lançado
-  valor?: number; // snapshot da tabela de preços no momento do lançamento (uso interno, só aparece no relatório)
   clinicaId?: string;
   clinicaNome?: string; // snapshot do nome, para não perder o histórico se a clínica for excluída
+  pago?: boolean; // procedimento já pago: sai do histórico do paciente e vai para Arquivados > Pagamentos
 }
 
 export interface Observacao {
@@ -31,11 +32,14 @@ export interface Observacao {
   criadoEm: string; // ISO
 }
 
+// Valor de um procedimento + local em uma clínica.
+// Sem clinicaId = tabela "Sem clínica" (inclui os valores cadastrados antes de existir tabela por clínica).
 export interface PrecoProcedimento {
   id: string;
   nome: string;
   tipoLocal: TipoLocal;
   valor: number;
+  clinicaId?: string;
 }
 
 export interface LancamentoFinanceiro {

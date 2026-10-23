@@ -9,9 +9,9 @@ import {
   addProcedimento,
   findPatientByName,
   getClinicas,
-  getPreco,
   getPrecos,
   getUltimaClinicaId,
+  setPatientArquivado,
   setUltimaClinicaId,
 } from "@/lib/storage";
 import { montarLocal } from "@/lib/local";
@@ -45,20 +45,21 @@ export default function CadastroPage() {
     if (!nome.trim()) return;
 
     const existente = findPatientByName(nome);
+    // Paciente arquivado que volta a ser atendido sai dos arquivados.
+    const estavaArquivado = !!existente?.arquivado;
+    if (existente && estavaArquivado) setPatientArquivado(existente.id, false);
     const paciente = existente ?? addPatient(nome);
     const temProcedimento = form.nome.trim().length > 0;
 
     if (temProcedimento) {
       const clinica = clinicas.find((c) => c.id === form.clinicaId);
-      // O valor vem da tabela de preços (Configurações > Procedimentos) e não aparece aqui.
-      const preco = getPreco(form.nome, form.tipoLocal);
 
+      // O valor não é gravado aqui: o relatório busca na tabela da clínica (Configurações > Procedimentos).
       addProcedimento({
         patientId: paciente.id,
         nome: form.nome.trim(),
         local: montarLocal(form.tipoLocal, form.numeroDente),
         data: form.data || hojeISO(),
-        valor: preco?.valor,
         clinicaId: clinica?.id,
         clinicaNome: clinica?.nome,
       });
@@ -66,17 +67,10 @@ export default function CadastroPage() {
 
     setUltimaClinicaId(form.clinicaId);
 
-    if (existente) {
-      setMensagem(
-        temProcedimento
-          ? `Procedimento lançado para ${paciente.nome}, que já estava cadastrado.`
-          : `${paciente.nome} já estava cadastrado.`
-      );
-    } else {
-      setMensagem(
-        temProcedimento ? "Paciente cadastrado e procedimento lançado." : "Paciente cadastrado."
-      );
-    }
+    const base = existente
+      ? `${paciente.nome} já estava cadastrado${estavaArquivado ? " e saiu dos arquivados" : ""}`
+      : "Paciente cadastrado";
+    setMensagem(temProcedimento ? `${base}. Procedimento lançado.` : `${base}.`);
 
     // Limpa só o que muda a cada paciente; clínica, local e data ficam para o próximo lançamento.
     setNome("");

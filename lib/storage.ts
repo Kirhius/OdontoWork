@@ -39,16 +39,33 @@ function uid(): string {
 
 // ---- Pacientes ----
 
+function porNome(a: Patient, b: Patient) {
+  return a.nome.localeCompare(b.nome, "pt-BR");
+}
+
+// Só os pacientes ativos (a tela Pacientes não mostra os arquivados).
 export function getPatients(): Patient[] {
-  return read<Patient>(KEYS.patients).sort((a, b) =>
-    a.nome.localeCompare(b.nome, "pt-BR")
-  );
+  return read<Patient>(KEYS.patients)
+    .filter((p) => !p.arquivado)
+    .sort(porNome);
+}
+
+export function getPatientsArquivados(): Patient[] {
+  return read<Patient>(KEYS.patients)
+    .filter((p) => p.arquivado)
+    .sort(porNome);
+}
+
+// Ativos + arquivados.
+export function getAllPatients(): Patient[] {
+  return read<Patient>(KEYS.patients).sort(porNome);
 }
 
 export function getPatient(id: string): Patient | undefined {
   return read<Patient>(KEYS.patients).find((p) => p.id === id);
 }
 
+// Procura também entre os arquivados.
 export function findPatientByName(nome: string): Patient | undefined {
   const alvo = nome.trim().toLowerCase();
   return read<Patient>(KEYS.patients).find(
@@ -65,6 +82,13 @@ export function addPatient(nome: string): Patient {
   };
   write(KEYS.patients, [...patients, patient]);
   return patient;
+}
+
+export function setPatientArquivado(id: string, arquivado: boolean) {
+  write(
+    KEYS.patients,
+    read<Patient>(KEYS.patients).map((p) => (p.id === id ? { ...p, arquivado } : p))
+  );
 }
 
 export function deletePatient(id: string) {
@@ -84,6 +108,7 @@ export function deletePatient(id: string) {
 
 // ---- Procedimentos ----
 
+// Traz todos (pagos e pendentes); quem chama filtra pelo campo "pago".
 export function getProcedimentos(patientId?: string): Procedimento[] {
   const all = read<Procedimento>(KEYS.procedimentos);
   const filtered = patientId ? all.filter((p) => p.patientId === patientId) : all;
@@ -103,11 +128,24 @@ export function addProcedimento(
   return novo;
 }
 
+export function setProcedimentoPago(id: string, pago: boolean) {
+  write(
+    KEYS.procedimentos,
+    read<Procedimento>(KEYS.procedimentos).map((p) => (p.id === id ? { ...p, pago } : p))
+  );
+}
+
 export function deleteProcedimento(id: string) {
   write(
     KEYS.procedimentos,
     read<Procedimento>(KEYS.procedimentos).filter((p) => p.id !== id)
   );
+}
+
+// Valor do procedimento na tabela da clínica em que ele foi feito.
+// Calculado na hora de gerar o relatório, então acompanha a tabela atual da clínica.
+export function getValorProcedimento(p: Procedimento): number | undefined {
+  return getPreco(p.nome, p.local.tipo, p.clinicaId)?.valor;
 }
 
 // ---- Observações ----
@@ -137,24 +175,44 @@ export function deleteObservacao(id: string) {
   );
 }
 
-// ---- Tabela de preços ----
+// ---- Tabela de preços (por clínica) ----
 
-export function getPrecos(): PrecoProcedimento[] {
-  return read<PrecoProcedimento>(KEYS.precos).sort((a, b) =>
-    a.nome.localeCompare(b.nome, "pt-BR")
-  );
+// clinicaId "" = tabela "Sem clínica"; sem argumento = todas as tabelas.
+export function getPrecos(clinicaId?: string): PrecoProcedimento[] {
+  const todos = read<PrecoProcedimento>(KEYS.precos);
+  const lista =
+    clinicaId === undefined ? todos : todos.filter((p) => (p.clinicaId ?? "") === clinicaId);
+  return lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
-export function getPreco(nome: string, tipoLocal: TipoLocal): PrecoProcedimento | undefined {
+export function getPreco(
+  nome: string,
+  tipoLocal: TipoLocal,
+  clinicaId?: string
+): PrecoProcedimento | undefined {
   const alvo = nome.trim().toLowerCase();
   return read<PrecoProcedimento>(KEYS.precos).find(
-    (p) => p.nome.trim().toLowerCase() === alvo && p.tipoLocal === tipoLocal
+    (p) =>
+      p.nome.trim().toLowerCase() === alvo &&
+      p.tipoLocal === tipoLocal &&
+      (p.clinicaId ?? "") === (clinicaId ?? "")
   );
 }
 
-export function addPreco(nome: string, tipoLocal: TipoLocal, valor: number): PrecoProcedimento {
+export function addPreco(
+  nome: string,
+  tipoLocal: TipoLocal,
+  valor: number,
+  clinicaId?: string
+): PrecoProcedimento {
   const precos = read<PrecoProcedimento>(KEYS.precos);
-  const novo: PrecoProcedimento = { id: uid(), nome: nome.trim(), tipoLocal, valor };
+  const novo: PrecoProcedimento = {
+    id: uid(),
+    nome: nome.trim(),
+    tipoLocal,
+    valor,
+    ...(clinicaId ? { clinicaId } : {}),
+  };
   write(KEYS.precos, [...precos, novo]);
   return novo;
 }
@@ -173,6 +231,35 @@ export function updatePreco(
 
 export function deletePreco(id: string) {
   write(KEYS.precos, read<PrecoProcedimento>(KEYS.precos).filter((p) => p.id !== id));
+}
+
+// Copia os valores de uma tabela para outra (ignora os que já existem no destino).
+// "" = Sem clínica. Devolve quantos valores foram copiados.
+export function copiarPrecos(deClinicaId: string, paraClinicaId: string): number {
+  const todos = read<PrecoProcedimento>(KEYS.precos);
+  const origem = todos.filter((p) => (p.clinicaId ?? "") === deClinicaId);
+  const novos: PrecoProcedimento[] = [];
+
+  for (const p of origem) {
+    const jaExiste = todos.some(
+      (d) =>
+        (d.clinicaId ?? "") === paraClinicaId &&
+        d.nome.trim().toLowerCase() === p.nome.trim().toLowerCase() &&
+        d.tipoLocal === p.tipoLocal
+    );
+    if (!jaExiste) {
+      novos.push({
+        id: uid(),
+        nome: p.nome,
+        tipoLocal: p.tipoLocal,
+        valor: p.valor,
+        ...(paraClinicaId ? { clinicaId: paraClinicaId } : {}),
+      });
+    }
+  }
+
+  if (novos.length > 0) write(KEYS.precos, [...todos, ...novos]);
+  return novos.length;
 }
 
 // ---- Lançamentos financeiros ----
@@ -247,8 +334,8 @@ export function addClinica(nome: string): Clinica {
   return nova;
 }
 
-// Procedimentos já lançados guardam o nome da clínica (clinicaNome),
-// então excluir uma clínica não apaga o histórico.
+// Procedimentos já lançados guardam o nome da clínica (clinicaNome) e os valores dela
+// continuam valendo nos relatórios, então excluir uma clínica não apaga o histórico.
 export function deleteClinica(id: string) {
   write(KEYS.clinicas, read<Clinica>(KEYS.clinicas).filter((c) => c.id !== id));
 }

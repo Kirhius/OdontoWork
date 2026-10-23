@@ -17,6 +17,7 @@ const config: Config = {
         blue: { DEFAULT: "#AECBEA", ink: "#1E3A5C" },
         lilac: { DEFAULT: "#CBB9E8", ink: "#3E2E58" },
         coral: { DEFAULT: "#F0AFA4", ink: "#6B2A21" },
+        sand: { DEFAULT: "#EBDDB8", ink: "#59491F" },
       },
       fontFamily: {
         display: ["var(--font-display)"],

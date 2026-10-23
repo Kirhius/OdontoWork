@@ -81,7 +81,8 @@ export default function ClinicasPage() {
           </ul>
           <p className="text-xs text-muted mt-4">
             Excluir uma clínica não apaga os procedimentos já lançados: eles
-            continuam mostrando o nome dela.
+            continuam mostrando o nome dela e os valores cadastrados para ela
+            seguem valendo nos relatórios antigos.
           </p>
         </>
       )}

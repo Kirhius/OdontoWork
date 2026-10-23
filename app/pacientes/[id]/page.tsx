@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import DeleteButton from "@/components/DeleteButton";
+import PaidButton from "@/components/PaidButton";
 import CamposProcedimento, { FormProcedimento, novoForm } from "@/components/CamposProcedimento";
 import {
   addObservacao,
@@ -14,10 +16,11 @@ import {
   getClinicas,
   getObservacoes,
   getPatient,
-  getPreco,
   getPrecos,
   getProcedimentos,
   getUltimaClinicaId,
+  setPatientArquivado,
+  setProcedimentoPago,
   setUltimaClinicaId,
 } from "@/lib/storage";
 import { Clinica, Observacao, Patient, Procedimento } from "@/lib/types";
@@ -38,6 +41,9 @@ export default function PacientePage() {
 
   if (paciente === undefined) return null;
 
+  const arquivado = !!paciente?.arquivado;
+  const voltarPara = arquivado ? "/configuracoes/arquivados/pacientes" : "/pacientes";
+
   if (paciente === null) {
     return (
       <div>
@@ -47,9 +53,27 @@ export default function PacientePage() {
     );
   }
 
+  function handleArquivar() {
+    if (!paciente) return;
+    if (arquivado) {
+      setPatientArquivado(paciente.id, false);
+      setPaciente(getPatient(paciente.id) ?? null);
+    } else {
+      // Vai direto para Configurações > Arquivados > Pacientes.
+      setPatientArquivado(paciente.id, true);
+      router.push("/pacientes");
+    }
+  }
+
   return (
     <div>
-      <PageHeader title={paciente.nome} backHref="/pacientes" />
+      <PageHeader title={paciente.nome} backHref={voltarPara} />
+
+      {arquivado && (
+        <p className="text-xs text-sand-ink bg-sand/50 rounded-lg px-3 py-2 mb-4">
+          Paciente arquivado. Toque em Desarquivar, no final da página, para voltar à lista de pacientes.
+        </p>
+      )}
 
       <div className="flex gap-2 mb-6 bg-surface border border-line rounded-xl p-1">
         <button
@@ -76,17 +100,25 @@ export default function PacientePage() {
         <ObservacoesTab patientId={paciente.id} />
       )}
 
-      <button
-        onClick={() => {
-          if (confirm(`Excluir o cadastro de ${paciente.nome}? Isso também apaga seus procedimentos e observações.`)) {
-            deletePatient(paciente.id);
-            router.push("/pacientes");
-          }
-        }}
-        className="mt-10 text-xs text-muted underline underline-offset-2 block mx-auto"
-      >
-        Excluir cadastro do paciente
-      </button>
+      <div className="mt-10 flex items-center justify-center gap-6">
+        <button
+          onClick={handleArquivar}
+          className="text-xs text-muted underline underline-offset-2"
+        >
+          {arquivado ? "Desarquivar" : "Arquivar"}
+        </button>
+        <button
+          onClick={() => {
+            if (confirm(`Excluir o cadastro de ${paciente.nome}? Isso também apaga seus procedimentos e observações.`)) {
+              deletePatient(paciente.id);
+              router.push(voltarPara);
+            }
+          }}
+          className="text-xs text-muted underline underline-offset-2"
+        >
+          Excluir cadastro do paciente
+        </button>
+      </div>
     </div>
   );
 }
@@ -114,6 +146,7 @@ function agruparPorMes(lista: Procedimento[]): GrupoMes[] {
 
 function ProcedimentosTab({ patientId }: { patientId: string }) {
   const [lista, setLista] = useState<Procedimento[]>([]);
+  const [qtdPagos, setQtdPagos] = useState(0);
   const [form, setForm] = useState<FormProcedimento>(novoForm());
   const [clinicas, setClinicas] = useState<Clinica[]>([]);
   const [sugestoes, setSugestoes] = useState<string[]>([]);
@@ -121,7 +154,10 @@ function ProcedimentosTab({ patientId }: { patientId: string }) {
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
 
   function carregar() {
-    setLista(getProcedimentos(patientId));
+    const todos = getProcedimentos(patientId);
+    // Procedimentos pagos saem daqui e ficam em Configurações > Arquivados > Pagamentos.
+    setLista(todos.filter((p) => !p.pago));
+    setQtdPagos(todos.filter((p) => p.pago).length);
   }
 
   useEffect(() => {
@@ -143,15 +179,13 @@ function ProcedimentosTab({ patientId }: { patientId: string }) {
     if (!form.nome.trim()) return;
 
     const clinica = clinicas.find((c) => c.id === form.clinicaId);
-    // Valor vem da tabela de preços e só aparece nos relatórios.
-    const preco = getPreco(form.nome, form.tipoLocal);
 
+    // O valor não é gravado aqui: o relatório busca na tabela da clínica (Configurações > Procedimentos).
     addProcedimento({
       patientId,
       nome: form.nome.trim(),
       local: montarLocal(form.tipoLocal, form.numeroDente),
       data: form.data || hojeISO(),
-      valor: preco?.valor,
       clinicaId: clinica?.id,
       clinicaNome: clinica?.nome,
     });
@@ -180,7 +214,7 @@ function ProcedimentosTab({ patientId }: { patientId: string }) {
 
       {grupos.length === 0 ? (
         <p className="text-sm text-muted text-center mt-6">
-          Nenhum procedimento lançado ainda.
+          {qtdPagos > 0 ? "Nenhum procedimento pendente." : "Nenhum procedimento lançado ainda."}
         </p>
       ) : (
         <div>
@@ -226,19 +260,28 @@ function ProcedimentosTab({ patientId }: { patientId: string }) {
                           key={p.id}
                           className="rounded-lg bg-bg px-3 py-3 flex items-start justify-between gap-3"
                         >
-                          <div>
+                          <div className="min-w-0">
                             <p className="font-medium">{p.nome}</p>
                             <p className="text-xs text-muted mt-0.5">
                               {formatarDataBR(p.data)} · {descreverLocal(p.local)}
                               {p.clinicaNome ? ` · ${p.clinicaNome}` : ""}
                             </p>
                           </div>
-                          <DeleteButton
-                            onConfirm={() => {
-                              deleteProcedimento(p.id);
-                              carregar();
-                            }}
-                          />
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <PaidButton
+                              pago={false}
+                              onClick={() => {
+                                setProcedimentoPago(p.id, true);
+                                carregar();
+                              }}
+                            />
+                            <DeleteButton
+                              onConfirm={() => {
+                                deleteProcedimento(p.id);
+                                carregar();
+                              }}
+                            />
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -248,6 +291,18 @@ function ProcedimentosTab({ patientId }: { patientId: string }) {
             })}
           </div>
         </div>
+      )}
+
+      {qtdPagos > 0 && (
+        <p className="text-xs text-muted text-center mt-5">
+          {qtdPagos} {qtdPagos === 1 ? "procedimento pago" : "procedimentos pagos"} em{" "}
+          <Link
+            href="/configuracoes/arquivados/pagamentos"
+            className="underline underline-offset-2"
+          >
+            Arquivados &gt; Pagamentos
+          </Link>
+        </p>
       )}
     </div>
   );
