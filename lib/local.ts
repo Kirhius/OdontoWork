@@ -20,11 +20,23 @@ export function descreverTipoLocal(tipo: TipoLocal): string {
   }
 }
 
-// "Dente 25", "Arcada superior", "Boca toda" ou "" quando não há local.
-export function descreverLocal(a: Pick<Atendimento, "tipoLocal" | "numeroDente">): string {
+// Dentes do atendimento (aceita o formato antigo, com um dente só), em ordem numérica.
+export function listaDentes(a: Pick<Atendimento, "dentes" | "numeroDente">): string[] {
+  const lista = a.dentes ?? (a.numeroDente ? [a.numeroDente] : []);
+  return ordenarDentes(lista);
+}
+
+export function ordenarDentes(dentes: string[]): string[] {
+  return [...dentes].sort((x, y) => Number(x) - Number(y));
+}
+
+// "Dente 25", "Dentes 14, 15", "Arcada superior", "Boca toda" ou "" quando não há local.
+export function descreverLocal(a: Pick<Atendimento, "tipoLocal" | "dentes" | "numeroDente">): string {
   if (!a.tipoLocal) return "";
-  if (a.tipoLocal === "dente") return a.numeroDente ? `Dente ${a.numeroDente}` : "Dente";
-  return descreverTipoLocal(a.tipoLocal);
+  if (a.tipoLocal !== "dente") return descreverTipoLocal(a.tipoLocal);
+  const dentes = listaDentes(a);
+  if (dentes.length === 0) return "Dente";
+  return dentes.length === 1 ? `Dente ${dentes[0]}` : `Dentes ${dentes.join(", ")}`;
 }
 
 export const ROTULO_TIPO: Record<TipoAtendimento, string> = {

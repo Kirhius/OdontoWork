@@ -9,9 +9,11 @@ import {
   getAtendimentosEntre,
   getClinicas,
   getPacientes,
+  getRetornosPendentes,
+  RetornoPendente,
   setAtendimentoPago,
 } from "@/lib/storage";
-import { dataValida, hojeISO } from "@/lib/data";
+import { dataValida, formatarDataBR, hojeISO } from "@/lib/data";
 import { ROTULO_TIPO } from "@/lib/local";
 import { Atendimento, Clinica, TipoAtendimento } from "@/lib/types";
 
@@ -27,12 +29,18 @@ export default function AtendimentosPage() {
   const [lista, setLista] = useState<Atendimento[]>([]);
   const [nomes, setNomes] = useState<Record<string, string>>({});
   const [clinicas, setClinicas] = useState<Clinica[]>([]);
+  const [retornos, setRetornos] = useState<RetornoPendente[]>([]);
   const [menuAberto, setMenuAberto] = useState(false);
 
   const carregar = useCallback((dia: string) => {
     setLista(getAtendimentosEntre(dia, dia));
     setNomes(Object.fromEntries(getPacientes().map((p) => [p.id, p.nome])));
     setClinicas(getClinicas());
+    // Retornos marcados para esse dia (em "hoje" entram também os que ficaram atrasados).
+    const hoje = hojeISO();
+    setRetornos(
+      getRetornosPendentes(dia).filter((r) => r.atendimento.retornarEm === dia || dia === hoje)
+    );
   }, []);
 
   useEffect(() => {
@@ -68,6 +76,35 @@ export default function AtendimentosPage() {
           {lista.length} {lista.length === 1 ? "lançamento" : "lançamentos"} · {pagos}{" "}
           {pagos === 1 ? "pago" : "pagos"}
         </p>
+      )}
+
+      {retornos.length > 0 && (
+        <section className="mb-5">
+          <h2 className="mb-2 font-display text-base">Retornos previstos</h2>
+          <ul className="flex flex-col gap-2.5">
+            {retornos.map(({ atendimento, paciente }) => (
+              <li
+                key={atendimento.id}
+                className="flex items-center gap-3 rounded-xl border border-dashed border-tone-d bg-tone-d/30 py-3 pl-4 pr-3 text-tone-d-ink"
+              >
+                <Link href={`/pacientes/${paciente.id}`} className="min-w-0 flex-1">
+                  <span className="block truncate font-bold">{paciente.nome}</span>
+                  <span className="block text-sm opacity-80">
+                    {atendimento.retornarEm === data
+                      ? "Tem retorno hoje"
+                      : `Retorno previsto para ${formatarDataBR(atendimento.retornarEm as string)}`}
+                  </span>
+                </Link>
+                <Link
+                  href={`/atendimentos/novo?tipo=retorno&data=${data}&nome=${encodeURIComponent(paciente.nome)}`}
+                  className="shrink-0 rounded-lg bg-surface px-3 py-2 text-xs font-medium text-ink"
+                >
+                  Registrar
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {lista.length === 0 ? (

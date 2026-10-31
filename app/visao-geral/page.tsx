@@ -5,6 +5,7 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import NavegadorData, { ModoPeriodo, intervaloDoPeriodo } from "@/components/NavegadorData";
 import CartaoAtendimento from "@/components/CartaoAtendimento";
+import AbasClinica, { ABA_SEM_CLINICA, ABA_TODAS, casaComAba } from "@/components/AbasClinica";
 import { getAtendimentosEntre, getClinicas, getPacientes, setAtendimentoPago } from "@/lib/storage";
 import { hojeISO, rotuloDia } from "@/lib/data";
 import { Atendimento, Clinica } from "@/lib/types";
@@ -19,6 +20,7 @@ export default function VisaoGeralPage() {
   const [modo, setModo] = useState<ModoPeriodo>("semana");
   const [data, setData] = useState<string | null>(null);
   const [somenteNaoPagos, setSomenteNaoPagos] = useState(false);
+  const [aba, setAba] = useState(ABA_TODAS);
   const [lista, setLista] = useState<Atendimento[]>([]);
   const [nomes, setNomes] = useState<Record<string, string>>({});
   const [clinicas, setClinicas] = useState<Clinica[]>([]);
@@ -53,16 +55,19 @@ export default function VisaoGeralPage() {
     carregar(data as string, modo);
   }
 
-  const total = lista.length;
-  const pagos = lista.filter((a) => a.pago).length;
-  const visiveis = somenteNaoPagos ? lista.filter((a) => !a.pago) : lista;
-
+  // Contagem por clínica considera o período todo; o resto respeita a aba escolhida.
   const porClinica = [
     ...clinicas.map((c) => ({ id: c.id, nome: c.nome, cor: c.cor })),
     { id: "", nome: "Sem clínica", cor: "" },
   ]
     .map((c) => ({ ...c, qtd: lista.filter((a) => (a.clinicaId ?? "") === c.id).length }))
     .filter((c) => c.qtd > 0);
+  const temSemClinica = lista.some((a) => !a.clinicaId || !clinicas.some((c) => c.id === a.clinicaId));
+
+  const daAba = lista.filter((a) => casaComAba(aba, clinicas.some((c) => c.id === a.clinicaId) ? a.clinicaId : undefined));
+  const total = daAba.length;
+  const pagos = daAba.filter((a) => a.pago).length;
+  const visiveis = somenteNaoPagos ? daAba.filter((a) => !a.pago) : daAba;
 
   const dias = Array.from(new Set(visiveis.map((a) => a.data)));
 
@@ -86,13 +91,22 @@ export default function VisaoGeralPage() {
 
       <NavegadorData data={data} modo={modo} onChange={mudarData} />
 
+      {clinicas.length > 0 && (
+        <AbasClinica
+          clinicas={clinicas}
+          valor={aba === ABA_SEM_CLINICA && !temSemClinica ? ABA_TODAS : aba}
+          onChange={setAba}
+          mostrarSemClinica={temSemClinica || aba === ABA_SEM_CLINICA}
+        />
+      )}
+
       <div className="mb-5 grid grid-cols-3 gap-2.5">
         <Resumo valor={total} rotulo="Lançamentos" />
         <Resumo valor={pagos} rotulo="Pagos" />
         <Resumo valor={total - pagos} rotulo="A receber" />
       </div>
 
-      {porClinica.length > 0 && (
+      {aba === ABA_TODAS && porClinica.length > 1 && (
         <ul className="mb-5 flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted">
           {porClinica.map((c) => (
             <li key={c.id || "sem"} className="flex items-center gap-1.5">

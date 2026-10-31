@@ -30,9 +30,12 @@ export interface Atendimento {
   procedimentoId?: string;
   procedimentoNome?: string;
   tipoLocal?: TipoLocal;
-  numeroDente?: string;
+  dentes?: string[]; // um ou mais dentes (numeração FDI)
+  numeroDente?: string; // formato antigo (um dente só); só lido, nunca mais gravado
   observacoes: string;
   clinicaId?: string;
   pago: boolean;
+  retornarEm?: string; // YYYY-MM-DD: dia em que o paciente deve voltar
+  retornoDispensado?: boolean; // aviso de retorno dispensado manualmente
   criadoEm: number;
 }

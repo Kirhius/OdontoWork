@@ -168,10 +168,11 @@ export interface AtendimentoInput {
   procedimentoId?: string;
   procedimentoNome?: string;
   tipoLocal?: TipoLocal;
-  numeroDente?: string;
+  dentes?: string[];
   observacoes: string;
   clinicaId?: string;
   pago: boolean;
+  retornarEm?: string;
 }
 
 export function getAtendimentos(): Atendimento[] {
@@ -206,7 +207,16 @@ export function updateAtendimento(id: string, input: AtendimentoInput) {
   if (!atual) return;
   const paciente = acharOuCriarPaciente(nome);
   const lista = getAtendimentos().map((a) =>
-    a.id === id ? { ...a, ...resto, pacienteId: paciente.id } : a
+    a.id === id
+      ? {
+          ...a,
+          ...resto,
+          numeroDente: undefined, // some o formato antigo de um dente só
+          pacienteId: paciente.id,
+          // mudou o dia do retorno: o aviso volta a valer
+          retornoDispensado: resto.retornarEm === a.retornarEm ? a.retornoDispensado : undefined,
+        }
+      : a
   );
   write(KEYS.atendimentos, lista);
   // Se o nome foi trocado e o paciente antigo ficou sem nenhum atendimento, ele sai da lista.
@@ -232,5 +242,64 @@ function removerPacienteSemAtendimentos(pacienteId: string, atendimentos: Atendi
   write(
     KEYS.pacientes,
     read<Paciente[]>(KEYS.pacientes, []).filter((p) => p.id !== pacienteId)
+  );
+}
+
+// Remove só os atendimentos dessa clínica ("" = sem clínica) dos pacientes marcados.
+// Quem ficar sem nenhum atendimento sai da lista de pacientes. Devolve quantos atendimentos saíram.
+export function deleteAtendimentosDaClinica(pacienteIds: string[], clinicaId: string): number {
+  const alvo = new Set(pacienteIds);
+  const atendimentos = getAtendimentos();
+  const restantes = atendimentos.filter(
+    (a) => !(alvo.has(a.pacienteId) && (a.clinicaId ?? "") === clinicaId)
+  );
+  write(KEYS.atendimentos, restantes);
+  const comAtendimento = new Set(restantes.map((a) => a.pacienteId));
+  write(
+    KEYS.pacientes,
+    read<Paciente[]>(KEYS.pacientes, []).filter((p) => !alvo.has(p.id) || comAtendimento.has(p.id))
+  );
+  return atendimentos.length - restantes.length;
+}
+
+export function getAtendimentosDoPaciente(pacienteId: string): Atendimento[] {
+  return ordenarCronologico(getAtendimentos().filter((a) => a.pacienteId === pacienteId)).reverse();
+}
+
+// ---------- Retornos ----------
+
+export interface RetornoPendente {
+  atendimento: Atendimento; // o atendimento em que o retorno foi marcado
+  paciente: Paciente;
+}
+
+// Retornos marcados para até a data informada que ainda não aconteceram.
+// Some sozinho quando o paciente tem um atendimento em dia posterior ao que marcou o retorno,
+// ou quando o aviso é dispensado. Um aviso por paciente (o mais antigo).
+export function getRetornosPendentes(ate: string): RetornoPendente[] {
+  const todos = getAtendimentos();
+  const pacientes = new Map(read<Paciente[]>(KEYS.pacientes, []).map((p) => [p.id, p]));
+  const vistos = new Set<string>();
+  const saida: RetornoPendente[] = [];
+
+  const candidatos = todos
+    .filter((a) => a.retornarEm && !a.retornoDispensado && a.retornarEm <= ate)
+    .sort((x, y) => (x.retornarEm as string).localeCompare(y.retornarEm as string));
+
+  for (const a of candidatos) {
+    const paciente = pacientes.get(a.pacienteId);
+    if (!paciente || vistos.has(a.pacienteId)) continue;
+    const voltou = todos.some((o) => o.pacienteId === a.pacienteId && o.data > a.data);
+    if (voltou) continue;
+    vistos.add(a.pacienteId);
+    saida.push({ atendimento: a, paciente });
+  }
+  return saida;
+}
+
+export function dispensarRetorno(atendimentoId: string) {
+  write(
+    KEYS.atendimentos,
+    getAtendimentos().map((a) => (a.id === atendimentoId ? { ...a, retornoDispensado: true } : a))
   );
 }

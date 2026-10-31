@@ -16,6 +16,16 @@ const config: Config = {
         accent: { DEFAULT: cor("accent"), ink: cor("accent-ink") },
         danger: { DEFAULT: cor("danger"), ink: cor("danger-ink") },
         paid: { DEFAULT: cor("paid"), ink: cor("paid-ink") },
+        tone: {
+          a: cor("tone-a"),
+          "a-ink": cor("tone-a-ink"),
+          b: cor("tone-b"),
+          "b-ink": cor("tone-b-ink"),
+          c: cor("tone-c"),
+          "c-ink": cor("tone-c-ink"),
+          d: cor("tone-d"),
+          "d-ink": cor("tone-d-ink"),
+        },
       },
       fontFamily: {
         display: ["var(--font-display)"],

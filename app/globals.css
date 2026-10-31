@@ -20,6 +20,15 @@
   --danger-ink: 107 42 33;
   --paid: 169 222 210; /* selo "$" quando pago */
   --paid-ink: 31 74 64;
+  /* Cores dos ícones dos botões (fundo e traço) */
+  --tone-a: 169 222 210;
+  --tone-a-ink: 31 74 64;
+  --tone-b: 174 203 234;
+  --tone-b-ink: 30 58 92;
+  --tone-c: 203 185 232;
+  --tone-c-ink: 62 46 88;
+  --tone-d: 240 207 160;
+  --tone-d-ink: 107 69 20;
 }
 
 @layer base {

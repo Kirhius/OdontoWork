@@ -1,3 +1,5 @@
+// Dente branco com selo de "concluído" sobre fundo verde-petróleo.
+// As mesmas formas geraram os ícones do app em public/icons.
 export default function Logo({ size = 40 }: { size?: number }) {
   return (
     <svg
@@ -7,16 +9,17 @@ export default function Logo({ size = 40 }: { size?: number }) {
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      <rect width="48" height="48" rx="14" fill="#A9DED2" />
-      <rect x="14" y="12.5" width="20" height="11" rx="5.5" fill="#1F4A40" />
-      <rect x="16.5" y="20" width="6" height="12" rx="3" fill="#1F4A40" />
-      <rect x="25.5" y="20" width="6" height="12" rx="3" fill="#1F4A40" />
-      <rect x="22.5" y="23.5" width="3" height="3.5" fill="#A9DED2" />
+      <rect width="48" height="48" rx="14" fill="#2F6F73" />
       <path
-        d="M18.5 17.6l2.3 2.3 5.2-5.2"
+        d="M17 11 C12.5 11 9.5 14.5 9.5 19 C9.5 23 12 25 13 29.5 C14 34 14.5 38 17.5 38 C20.5 38 20.5 31.5 24 31.5 C27.5 31.5 27.5 38 30.5 38 C33.5 38 34 34 35 29.5 C36 25 38.5 23 38.5 19 C38.5 14.5 35.5 11 31 11 C28 11 26 12.5 24 12.5 C22 12.5 20 11 17 11 Z"
+        fill="#FFFFFF"
+      />
+      <circle cx="36" cy="36" r="9" fill="#F2A65A" />
+      <path
+        d="M32.2 36.2l2.7 2.7 5-5.4"
         fill="none"
-        stroke="#A9DED2"
-        strokeWidth="2.4"
+        stroke="#FFFFFF"
+        strokeWidth="2.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

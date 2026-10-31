@@ -17,8 +17,15 @@ import {
   setUltimaClinicaId,
   updateAtendimento,
 } from "@/lib/storage";
-import { agoraHHMM, dataValida, hojeISO } from "@/lib/data";
-import { DENTES_FDI, ROTULO_TIPO, descreverTipoLocal, tipoAtendimentoValido } from "@/lib/local";
+import { agoraHHMM, dataValida, hojeISO, somarDias } from "@/lib/data";
+import {
+  DENTES_FDI,
+  ROTULO_TIPO,
+  descreverTipoLocal,
+  listaDentes,
+  ordenarDentes,
+  tipoAtendimentoValido,
+} from "@/lib/local";
 import { Clinica, Paciente, ProcedimentoCadastro, TipoAtendimento } from "@/lib/types";
 
 const TIPOS: TipoAtendimento[] = ["atendimento", "retorno", "avaliacao"];
@@ -30,7 +37,25 @@ const GRUPOS_DENTES: { rotulo: string; dentes: string[] }[] = [
   { rotulo: "Inferior esquerdo", dentes: DENTES_FDI.slice(24, 32) },
 ];
 
-// Sem id = novo atendimento (tipo e data podem vir na URL: ?tipo=retorno&data=2026-10-30).
+// Horários redondos, de meia em meia hora (06:00, 06:30, 07:00 ... 22:00).
+const HORARIOS: string[] = (() => {
+  const lista: string[] = [];
+  for (let h = 6; h <= 22; h++) {
+    lista.push(`${String(h).padStart(2, "0")}:00`);
+    if (h < 22) lista.push(`${String(h).padStart(2, "0")}:30`);
+  }
+  return lista;
+})();
+
+// Hora atual arredondada para o horário redondo mais próximo.
+function horaRedondaAgora(): string {
+  const [h, m] = agoraHHMM().split(":").map(Number);
+  const total = Math.round((h * 60 + m) / 30) * 30;
+  const limitado = Math.min(Math.max(total, 6 * 60), 22 * 60);
+  return `${String(Math.floor(limitado / 60)).padStart(2, "0")}:${String(limitado % 60).padStart(2, "0")}`;
+}
+
+// Sem id = novo atendimento (a URL pode trazer ?tipo=retorno&data=2026-10-30&nome=Maria).
 // Com id = consulta e edição do que já foi lançado.
 export default function FormAtendimento({ atendimentoId }: { atendimentoId?: string }) {
   const router = useRouter();
@@ -43,13 +68,15 @@ export default function FormAtendimento({ atendimentoId }: { atendimentoId?: str
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
 
   const [nome, setNome] = useState("");
+  const [pacienteId, setPacienteId] = useState("");
   const [tipo, setTipo] = useState<TipoAtendimento>("atendimento");
   const [data, setData] = useState("");
   const [hora, setHora] = useState("");
   const [procId, setProcId] = useState("");
-  const [dente, setDente] = useState("");
+  const [dentes, setDentes] = useState<string[]>([]);
   const [obs, setObs] = useState("");
   const [clinicaId, setClinicaId] = useState("");
+  const [retornarEm, setRetornarEm] = useState("");
   const [pago, setPago] = useState(false);
   const [erro, setErro] = useState("");
   // Procedimento que o atendimento tinha mas que foi removido do cadastro depois.
@@ -70,13 +97,15 @@ export default function FormAtendimento({ atendimentoId }: { atendimentoId?: str
         return;
       }
       setNome(getPaciente(a.pacienteId)?.nome ?? "");
+      setPacienteId(a.pacienteId);
       setTipo(a.tipo);
       setData(a.data);
       setHora(a.hora);
       setProcId(a.procedimentoId ?? "");
-      setDente(a.numeroDente ?? "");
+      setDentes(listaDentes(a));
       setObs(a.observacoes);
       setClinicaId(listaClinicas.some((c) => c.id === a.clinicaId) ? a.clinicaId ?? "" : "");
+      setRetornarEm(a.retornarEm ?? "");
       setPago(a.pago);
       if (a.procedimentoId && a.procedimentoNome && a.tipoLocal && !listaProcs.some((p) => p.id === a.procedimentoId)) {
         setAntigo({ id: a.procedimentoId, nome: a.procedimentoNome, tipoLocal: a.tipoLocal });
@@ -85,10 +114,12 @@ export default function FormAtendimento({ atendimentoId }: { atendimentoId?: str
       const params = new URLSearchParams(window.location.search);
       const t = params.get("tipo");
       const d = params.get("data");
+      const n = params.get("nome");
       const ultima = getUltimaClinicaId();
       setTipo(tipoAtendimentoValido(t) ? t : "atendimento");
       setData(dataValida(d) ? d : hojeISO());
-      setHora(agoraHHMM());
+      setHora(horaRedondaAgora());
+      if (n) setNome(n);
       setClinicaId(listaClinicas.some((c) => c.id === ultima) ? ultima : "");
     }
     setPronto(true);
@@ -97,6 +128,12 @@ export default function FormAtendimento({ atendimentoId }: { atendimentoId?: str
   const opcoesProc = antigo ? [...cadastrados, antigo] : cadastrados;
   const procEscolhido = opcoesProc.find((p) => p.id === procId);
   const voltarPara = `/atendimentos${data ? `?data=${data}` : ""}`;
+  // Se o horário salvo não é redondo (lançamento antigo), ele continua disponível na lista.
+  const horarios = hora && !HORARIOS.includes(hora) ? [...HORARIOS, hora].sort() : HORARIOS;
+
+  function alternarDente(d: string) {
+    setDentes((atual) => ordenarDentes(atual.includes(d) ? atual.filter((x) => x !== d) : [...atual, d]));
+  }
 
   function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -112,8 +149,12 @@ export default function FormAtendimento({ atendimentoId }: { atendimentoId?: str
       setErro("Escolha o procedimento.");
       return;
     }
-    if (procEscolhido?.tipoLocal === "dente" && !dente) {
-      setErro("Escolha o número do dente.");
+    if (procEscolhido?.tipoLocal === "dente" && dentes.length === 0) {
+      setErro("Marque pelo menos um dente.");
+      return;
+    }
+    if (retornarEm && retornarEm <= data) {
+      setErro("O retorno precisa ser em um dia depois do atendimento.");
       return;
     }
 
@@ -125,10 +166,11 @@ export default function FormAtendimento({ atendimentoId }: { atendimentoId?: str
       procedimentoId: procEscolhido?.id,
       procedimentoNome: procEscolhido?.nome,
       tipoLocal: procEscolhido?.tipoLocal,
-      numeroDente: procEscolhido?.tipoLocal === "dente" ? dente : undefined,
+      dentes: procEscolhido?.tipoLocal === "dente" ? dentes : undefined,
       observacoes: obs.trim(),
       clinicaId: clinicaId || undefined,
       pago,
+      retornarEm: retornarEm || undefined,
     };
 
     if (atendimentoId) updateAtendimento(atendimentoId, dados);
@@ -195,6 +237,14 @@ export default function FormAtendimento({ atendimentoId }: { atendimentoId?: str
               <option key={p.id} value={p.nome} />
             ))}
           </datalist>
+          {editando && pacienteId && (
+            <Link
+              href={`/pacientes/${pacienteId}`}
+              className="mt-1.5 inline-block text-xs text-muted underline underline-offset-2"
+            >
+              Ver ficha do paciente
+            </Link>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -214,13 +264,13 @@ export default function FormAtendimento({ atendimentoId }: { atendimentoId?: str
             <label htmlFor="hora" className="field-label">
               Horário
             </label>
-            <input
-              id="hora"
-              type="time"
-              className="field-input"
-              value={hora}
-              onChange={(e) => setHora(e.target.value)}
-            />
+            <select id="hora" className="field-input" value={hora} onChange={(e) => setHora(e.target.value)}>
+              {horarios.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -255,26 +305,44 @@ export default function FormAtendimento({ atendimentoId }: { atendimentoId?: str
         {procEscolhido &&
           (procEscolhido.tipoLocal === "dente" ? (
             <div>
-              <label htmlFor="dente" className="field-label">
-                Dente
-              </label>
-              <select
-                id="dente"
-                className="field-input"
-                value={dente}
-                onChange={(e) => setDente(e.target.value)}
-              >
-                <option value="">Selecione o dente</option>
+              <span className="field-label">Dentes (toque para marcar um ou mais)</span>
+              <div className="flex flex-col gap-3">
                 {GRUPOS_DENTES.map((g) => (
-                  <optgroup key={g.rotulo} label={g.rotulo}>
-                    {g.dentes.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </optgroup>
+                  <div key={g.rotulo}>
+                    <p className="mb-1 text-xs text-muted">{g.rotulo}</p>
+                    <div className="grid grid-cols-8 gap-1.5">
+                      {g.dentes.map((d) => {
+                        const marcado = dentes.includes(d);
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            aria-pressed={marcado}
+                            onClick={() => alternarDente(d)}
+                            className={`h-10 rounded-lg border text-sm tabular-nums transition-colors ${
+                              marcado
+                                ? "border-accent bg-accent font-semibold text-accent-ink"
+                                : "border-line bg-surface text-muted"
+                            }`}
+                          >
+                            {d}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
-              </select>
+              </div>
+              <p className="mt-2 text-sm text-muted">
+                {dentes.length === 0 ? (
+                  "Nenhum dente marcado."
+                ) : (
+                  <>
+                    {dentes.length === 1 ? "Dente " : "Dentes "}
+                    <span className="font-medium text-ink">{dentes.join(", ")}</span>
+                  </>
+                )}
+              </p>
             </div>
           ) : (
             <p className="-mt-2 text-sm text-muted">
@@ -321,6 +389,36 @@ export default function FormAtendimento({ atendimentoId }: { atendimentoId?: str
             value={obs}
             onChange={(e) => setObs(e.target.value)}
           />
+        </div>
+
+        <div>
+          <label htmlFor="retorno" className="field-label">
+            Retornar em (opcional)
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              id="retorno"
+              type="date"
+              className="field-input"
+              min={data ? somarDias(data, 1) : undefined}
+              value={retornarEm}
+              onChange={(e) => setRetornarEm(e.target.value)}
+            />
+            {retornarEm && (
+              <button
+                type="button"
+                onClick={() => setRetornarEm("")}
+                className="shrink-0 text-sm text-muted underline underline-offset-2"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+          {retornarEm && (
+            <p className="mt-1.5 text-xs text-muted">
+              Vai aparecer na agenda desse dia e como aviso na tela inicial.
+            </p>
+          )}
         </div>
 
         <label className="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3">
