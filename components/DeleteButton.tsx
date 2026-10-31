@@ -10,7 +10,7 @@ export default function DeleteButton({ onConfirm }: { onConfirm: () => void }) {
       <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={onConfirm}
-          className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-coral text-coral-ink"
+          className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-danger text-danger-ink"
         >
           Confirmar
         </button>
@@ -28,7 +28,7 @@ export default function DeleteButton({ onConfirm }: { onConfirm: () => void }) {
     <button
       onClick={() => setConfirmando(true)}
       aria-label="Excluir"
-      className="w-8 h-8 flex items-center justify-center rounded-full text-muted hover:bg-coral/20 hover:text-coral-ink shrink-0"
+      className="w-8 h-8 flex items-center justify-center rounded-full text-muted hover:bg-danger/30 hover:text-danger-ink shrink-0"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
         <path

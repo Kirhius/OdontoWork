@@ -1,6 +1,18 @@
 # OdontoWork
 
-App teste (PWA) para controlar cadastro de pacientes, procedimentos concluídos e observações. Tudo fica salvo no **localStorage do navegador** — não existe banco de dados externo nem login.
+Agenda diária pessoal (PWA) para lançar rápido os atendimentos, retornos e avaliações do dia. Tudo fica no **localStorage do navegador**: não há banco de dados externo nem login.
+
+## Telas
+
+- **Atendimentos**: agenda do dia em ordem de horário. Botão `+` para adicionar Atendimento, Retorno ou Avaliação; toque em um item para consultar ou editar; `$` marca como pago pela clínica; a borda esquerda leva a cor da clínica.
+- **Visão geral**: dia, semana ou mês, com totais (lançamentos, pagos, a receber), contagem por clínica e lista por dia.
+- **Configurações**: Procedimentos, Relatórios (PDF e Excel), Clínicas (nome e cor) e Limpeza (excluir pacientes).
+
+## Mudar a estética
+
+- Cores: bloco `:root` em `app/globals.css`.
+- Fontes: `app/layout.tsx`.
+- Formato de botões, campos e cartões: bloco `@layer components` em `app/globals.css`.
 
 ## Rodar localmente
 
@@ -9,32 +21,6 @@ npm install
 npm run dev
 ```
 
-Abra http://localhost:3000
-
-## Publicar na Vercel
-
-1. Suba esta pasta para um repositório no GitHub.
-2. Na Vercel, clique em "New Project" e importe o repositório.
-3. Framework Preset: Next.js (detectado automaticamente). Não é preciso configurar nenhuma variável de ambiente.
-4. Deploy.
-
-## Instalar como app (PWA)
-
-Depois de publicado, abra o link no celular (Chrome/Safari) e use a opção "Adicionar à tela inicial" / "Instalar app".
-
 ## Importante sobre os dados
 
-Como os dados ficam apenas no localStorage do navegador que você usar:
-- Se limpar os dados do navegador, o histórico é perdido.
-- Os dados **não sincronizam** entre celular e computador, nem entre navegadores diferentes.
-- É um app de uso individual, pensado para teste.
-
-## Estrutura
-
-- `Cadastro` → cria um paciente só com o nome.
-- `Pacientes` → lista e busca pacientes; ao abrir um paciente, duas abas:
-  - `Procedimentos Concluídos`: lançamento manual (nome, local — dente/arcada/boca toda —, data), com lista e opção de excluir.
-  - `Observações`: texto livre, com lista e opção de excluir.
-- `Configurações`:
-  - `Relatórios`: filtro por período e/ou nome do procedimento, visualização em lista, exportação em PDF ou Excel (.xlsx).
-  - `Financeiro`: ainda vazio (placeholder para este teste).
+Os dados ficam só no navegador usado. Limpar os dados do navegador apaga tudo, e não há sincronia entre celular e computador.

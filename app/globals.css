@@ -2,18 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   ESTÉTICA — é aqui que você muda a cara do app.
+   - Cores: valores em "R G B" (sem vírgula), usados em todo o app.
+   - Fontes: troque em app/layout.tsx (variáveis --font-display e --font-body).
+   - Formas dos botões, campos e cartões: bloco @layer components mais abaixo.
+   ========================================================================== */
+:root {
+  --bg: 250 247 242; /* fundo da página */
+  --surface: 255 255 255; /* cartões e campos */
+  --ink: 43 46 51; /* texto principal */
+  --muted: 118 123 133; /* texto secundário */
+  --line: 231 226 216; /* bordas */
+  --accent: 169 222 210; /* botão principal */
+  --accent-ink: 31 74 64; /* texto sobre o botão principal */
+  --danger: 240 175 164; /* excluir / alertas */
+  --danger-ink: 107 42 33;
+  --paid: 169 222 210; /* selo "$" quando pago */
+  --paid-ink: 31 74 64;
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
   }
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     font: inherit;
   }
 }
 
 @layer components {
   .home-btn {
-    @apply w-full flex items-center gap-4 rounded-xl2 px-5 py-5 text-left transition-transform active:scale-[0.98];
+    @apply w-full flex items-center gap-4 rounded-2xl border border-line bg-surface px-5 py-5 text-left transition-transform active:scale-[0.98];
   }
   .field-label {
     @apply block text-sm font-medium text-muted mb-1.5;
@@ -22,9 +44,19 @@
     @apply w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink placeholder:text-muted/70 outline-none focus:border-ink/40;
   }
   .primary-btn {
-    @apply w-full rounded-xl bg-mint text-mint-ink font-medium py-3.5 transition-transform active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100;
+    @apply w-full rounded-xl bg-accent text-accent-ink font-medium py-3.5 transition-transform active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100;
+  }
+  .ghost-btn {
+    @apply rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium text-ink transition-transform active:scale-[0.98] disabled:opacity-40;
   }
   .list-card {
     @apply rounded-xl border border-line bg-surface px-4 py-3.5;
+  }
+  .chip {
+    @apply rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium text-muted transition-colors;
+  }
+  .chip[aria-pressed="true"],
+  .chip[aria-selected="true"] {
+    @apply bg-accent text-accent-ink border-accent;
   }
 }

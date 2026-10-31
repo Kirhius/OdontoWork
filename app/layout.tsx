@@ -16,7 +16,7 @@ const body = Inter({
 
 export const metadata: Metadata = {
   title: "OdontoWork",
-  description: "Controle simples de atendimentos, procedimentos e observações.",
+  description: "Agenda diária de atendimentos, retornos e avaliações.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icons/icon-192.png",

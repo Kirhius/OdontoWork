@@ -1,128 +1,111 @@
-import { LancamentoFinanceiro, Procedimento } from "./types";
-import { descreverLocal } from "./local";
-import { getPatient, getValorProcedimento } from "./storage";
-import { formatarReais } from "./moeda";
+import { Atendimento } from "./types";
+import { ROTULO_TIPO, descreverLocal } from "./local";
+import { getClinicas, getPacientes } from "./storage";
 import { formatarDataBR } from "./data";
 
-interface LinhaRelatorio {
+interface Linha {
   data: string;
+  hora: string;
   paciente: string;
+  tipo: string;
   procedimento: string;
   local: string;
   clinica: string;
-  valor: number | undefined;
+  pago: string;
 }
 
-function montarLinhas(procedimentos: Procedimento[]): LinhaRelatorio[] {
-  return procedimentos.map((p) => ({
-    data: formatarDataBR(p.data),
-    paciente: getPatient(p.patientId)?.nome ?? "Paciente removido",
-    procedimento: p.nome,
-    local: descreverLocal(p.local),
-    clinica: p.clinicaNome ?? "—",
-    valor: getValorProcedimento(p),
+function montarLinhas(atendimentos: Atendimento[]): Linha[] {
+  const pacientes = new Map(getPacientes().map((p) => [p.id, p.nome]));
+  const clinicas = new Map(getClinicas().map((c) => [c.id, c.nome]));
+  return atendimentos.map((a) => ({
+    data: formatarDataBR(a.data),
+    hora: a.hora,
+    paciente: pacientes.get(a.pacienteId) ?? "Paciente removido",
+    tipo: ROTULO_TIPO[a.tipo],
+    procedimento: a.procedimentoNome ?? "—",
+    local: descreverLocal(a) || "—",
+    clinica: (a.clinicaId && clinicas.get(a.clinicaId)) || "—",
+    pago: a.pago ? "Sim" : "Não",
   }));
 }
 
-function somarTotal(linhas: LinhaRelatorio[]): number {
-  return linhas.reduce((soma, l) => soma + (l.valor ?? 0), 0);
+export function resumoPorProcedimento(atendimentos: Atendimento[]): { procedimento: string; quantidade: number }[] {
+  const mapa = new Map<string, number>();
+  for (const a of atendimentos) {
+    const nome = a.procedimentoNome ?? ROTULO_TIPO[a.tipo];
+    mapa.set(nome, (mapa.get(nome) ?? 0) + 1);
+  }
+  return Array.from(mapa, ([procedimento, quantidade]) => ({ procedimento, quantidade })).sort(
+    (x, y) => y.quantidade - x.quantidade || x.procedimento.localeCompare(y.procedimento, "pt-BR")
+  );
 }
 
-export async function exportarPDF(procedimentos: Procedimento[]) {
+export async function exportarPDF(atendimentos: Atendimento[]) {
   const { jsPDF } = await import("jspdf");
   const autoTable = (await import("jspdf-autotable")).default;
 
-  const doc = new jsPDF();
-  const linhas = montarLinhas(procedimentos);
-  const total = somarTotal(linhas);
+  const doc = new jsPDF({ orientation: "landscape" });
+  const linhas = montarLinhas(atendimentos);
 
   doc.setFontSize(16);
   doc.text("Relatório de procedimentos", 14, 18);
   doc.setFontSize(10);
   doc.setTextColor(120);
-  doc.text(`Gerado em ${new Date().toLocaleDateString("pt-BR")}`, 14, 24);
+  doc.text(
+    `Gerado em ${new Date().toLocaleDateString("pt-BR")} · ${linhas.length} ${linhas.length === 1 ? "registro" : "registros"}`,
+    14,
+    24
+  );
 
   autoTable(doc, {
     startY: 30,
-    head: [["Data", "Paciente", "Procedimento", "Local", "Clínica", "Valor"]],
-    body: linhas.map((l) => [
-      l.data,
-      l.paciente,
-      l.procedimento,
-      l.local,
-      l.clinica,
-      typeof l.valor === "number" ? formatarReais(l.valor) : "—",
-    ]),
-    foot: [["", "", "", "", "Total", formatarReais(total)]],
+    head: [["Data", "Hora", "Paciente", "Tipo", "Procedimento", "Local", "Clínica", "Pago"]],
+    body: linhas.map((l) => [l.data, l.hora, l.paciente, l.tipo, l.procedimento, l.local, l.clinica, l.pago]),
     headStyles: { fillColor: [169, 222, 210], textColor: [31, 74, 64] },
-    footStyles: { fillColor: [250, 247, 242], textColor: [43, 46, 51], fontStyle: "bold" },
     styles: { fontSize: 9 },
   });
+
+  const resumo = resumoPorProcedimento(atendimentos);
+  if (resumo.length > 0) {
+    const ultimoY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 30;
+    autoTable(doc, {
+      startY: ultimoY + 10,
+      head: [["Procedimento", "Quantidade"]],
+      body: resumo.map((r) => [r.procedimento, String(r.quantidade)]),
+      headStyles: { fillColor: [250, 247, 242], textColor: [43, 46, 51] },
+      styles: { fontSize: 9 },
+      tableWidth: 100,
+    });
+  }
 
   doc.save(`odontowork-relatorio-${Date.now()}.pdf`);
 }
 
-export async function exportarExcel(procedimentos: Procedimento[]) {
+export async function exportarExcel(atendimentos: Atendimento[]) {
   const XLSX = await import("xlsx");
-  const linhas = montarLinhas(procedimentos);
-  const total = somarTotal(linhas);
+  const linhas = montarLinhas(atendimentos);
 
-  const worksheet = XLSX.utils.json_to_sheet(
+  const planilha = XLSX.utils.json_to_sheet(
     linhas.map((l) => ({
       Data: l.data,
+      Hora: l.hora,
       Paciente: l.paciente,
+      Tipo: l.tipo,
       Procedimento: l.procedimento,
       Local: l.local,
       Clínica: l.clinica,
-      Valor: typeof l.valor === "number" ? l.valor : "",
+      Pago: l.pago,
     }))
   );
-  XLSX.utils.sheet_add_aoa(worksheet, [["", "", "", "", "Total", total]], {
-    origin: -1,
-  });
-  worksheet["!cols"] = [
-    { wch: 12 },
-    { wch: 28 },
-    { wch: 28 },
-    { wch: 18 },
-    { wch: 22 },
-    { wch: 14 },
-  ];
+  planilha["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 28 }, { wch: 12 }, { wch: 26 }, { wch: 18 }, { wch: 22 }, { wch: 7 }];
 
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Procedimentos");
-  XLSX.writeFile(workbook, `odontowork-relatorio-${Date.now()}.xlsx`);
-}
+  const resumo = XLSX.utils.json_to_sheet(
+    resumoPorProcedimento(atendimentos).map((r) => ({ Procedimento: r.procedimento, Quantidade: r.quantidade }))
+  );
+  resumo["!cols"] = [{ wch: 30 }, { wch: 12 }];
 
-export async function exportarFinanceiroPDF(lancamentos: LancamentoFinanceiro[]) {
-  const { jsPDF } = await import("jspdf");
-  const autoTable = (await import("jspdf-autotable")).default;
-
-  const doc = new jsPDF();
-  const totalComissao = lancamentos.reduce((soma, l) => soma + l.comissao, 0);
-  const totalValor = lancamentos.reduce((soma, l) => soma + l.valorTotal, 0);
-
-  doc.setFontSize(16);
-  doc.text("Relatório financeiro", 14, 18);
-  doc.setFontSize(10);
-  doc.setTextColor(120);
-  doc.text(`Gerado em ${new Date().toLocaleDateString("pt-BR")}`, 14, 24);
-
-  autoTable(doc, {
-    startY: 30,
-    head: [["Data", "Paciente", "Valor total", "%", "Comissão"]],
-    body: lancamentos.map((l) => [
-      formatarDataBR(l.data),
-      l.pacienteNome,
-      formatarReais(l.valorTotal),
-      `${l.percentual}%`,
-      formatarReais(l.comissao),
-    ]),
-    foot: [["", "", formatarReais(totalValor), "Total", formatarReais(totalComissao)]],
-    headStyles: { fillColor: [174, 203, 234], textColor: [30, 58, 92] },
-    footStyles: { fillColor: [250, 247, 242], textColor: [43, 46, 51], fontStyle: "bold" },
-    styles: { fontSize: 10 },
-  });
-
-  doc.save(`odontowork-financeiro-${Date.now()}.pdf`);
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, "Atendimentos");
+  XLSX.utils.book_append_sheet(livro, resumo, "Resumo");
+  XLSX.writeFile(livro, `odontowork-relatorio-${Date.now()}.xlsx`);
 }

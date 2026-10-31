@@ -1,30 +1,25 @@
 import type { Config } from "tailwindcss";
 
+// As cores vêm das variáveis CSS em app/globals.css (bloco :root).
+const cor = (nome: string) => `rgb(var(--${nome}) / <alpha-value>)`;
+
 const config: Config = {
-  content: [
-    "./app/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-  ],
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        bg: "#FAF7F2",
-        surface: "#FFFFFF",
-        ink: "#2B2E33",
-        muted: "#767B85",
-        line: "#E7E2D8",
-        mint: { DEFAULT: "#A9DED2", ink: "#1F4A40" },
-        blue: { DEFAULT: "#AECBEA", ink: "#1E3A5C" },
-        lilac: { DEFAULT: "#CBB9E8", ink: "#3E2E58" },
-        coral: { DEFAULT: "#F0AFA4", ink: "#6B2A21" },
-        sand: { DEFAULT: "#EBDDB8", ink: "#59491F" },
+        bg: cor("bg"),
+        surface: cor("surface"),
+        ink: cor("ink"),
+        muted: cor("muted"),
+        line: cor("line"),
+        accent: { DEFAULT: cor("accent"), ink: cor("accent-ink") },
+        danger: { DEFAULT: cor("danger"), ink: cor("danger-ink") },
+        paid: { DEFAULT: cor("paid"), ink: cor("paid-ink") },
       },
       fontFamily: {
         display: ["var(--font-display)"],
         body: ["var(--font-body)"],
-      },
-      borderRadius: {
-        xl2: "1.25rem",
       },
     },
   },

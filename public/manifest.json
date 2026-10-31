@@ -1,7 +1,7 @@
 {
   "name": "OdontoWork",
   "short_name": "OdontoWork",
-  "description": "Controle simples de atendimentos, procedimentos e observações.",
+  "description": "Agenda diária de atendimentos, retornos e avaliações.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FAF7F2",

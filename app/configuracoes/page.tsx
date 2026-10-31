@@ -1,86 +1,27 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 
+const ITENS = [
+  { href: "/configuracoes/procedimentos", titulo: "Procedimentos", texto: "Lista usada ao lançar um atendimento" },
+  { href: "/configuracoes/relatorios", titulo: "Relatórios", texto: "Por período, clínica ou procedimento" },
+  { href: "/configuracoes/clinicas", titulo: "Clínicas", texto: "Nomes e cores de identificação" },
+  { href: "/configuracoes/limpeza", titulo: "Limpeza", texto: "Excluir pacientes para liberar espaço" },
+];
+
 export default function ConfiguracoesPage() {
   return (
     <div>
       <PageHeader title="Configurações" backHref="/" />
-
-      <nav className="flex flex-col gap-4">
-        <Link href="/configuracoes/procedimentos" className="home-btn bg-mint text-mint-ink">
-          <IconProcedimentos />
-          <span className="font-display text-lg">Procedimentos</span>
-        </Link>
-
-        <Link href="/configuracoes/relatorios" className="home-btn bg-blue text-blue-ink">
-          <IconRelatorios />
-          <span className="font-display text-lg">Relatórios</span>
-        </Link>
-
-        <Link href="/configuracoes/financeiro" className="home-btn bg-lilac text-lilac-ink">
-          <IconFinanceiro />
-          <span className="font-display text-lg">Financeiro</span>
-        </Link>
-
-        <Link href="/configuracoes/arquivados" className="home-btn bg-sand text-sand-ink">
-          <IconArquivados />
-          <span className="font-display text-lg">Arquivados</span>
-        </Link>
-
-        <Link href="/configuracoes/adicionais" className="home-btn bg-coral text-coral-ink">
-          <IconAdicionais />
-          <span className="font-display text-lg">Adicionais</span>
-        </Link>
+      <nav className="flex flex-col gap-3.5">
+        {ITENS.map((i) => (
+          <Link key={i.href} href={i.href} className="home-btn">
+            <span>
+              <span className="block font-display text-lg">{i.titulo}</span>
+              <span className="block text-sm text-muted">{i.texto}</span>
+            </span>
+          </Link>
+        ))}
       </nav>
     </div>
-  );
-}
-
-function IconProcedimentos() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
-      <path d="M8 5.5h6.5L19 10v8.5a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <path d="M14.3 5.5V10H19" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <path d="M9.5 13.2h5M9.5 16h3.2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconRelatorios() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
-      <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M8.5 9h7M8.5 12.5h7M8.5 16h4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconFinanceiro() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
-      <circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M12 8v8M14.3 9.8c0-.9-1-1.6-2.3-1.6-1.4 0-2.4.8-2.4 1.8 0 2.6 4.7 1.3 4.7 3.9 0 1-1 1.8-2.4 1.8-1.3 0-2.3-.7-2.3-1.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconAdicionais() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
-      <rect x="4.5" y="4.5" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
-      <rect x="13.5" y="4.5" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
-      <rect x="4.5" y="13.5" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M16.5 13.5v6M13.5 16.5h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconArquivados() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
-      <rect x="3.5" y="5" width="17" height="4.5" rx="1.2" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <path d="M5 9.5V18a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 18V9.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10 13h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
   );
 }

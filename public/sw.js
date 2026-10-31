@@ -1,4 +1,4 @@
-const CACHE = "odontowork-v1";
+const CACHE = "odontowork-v2";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
