@@ -1,6 +1,7 @@
 import {
   Atendimento,
   Clinica,
+  DiaAgenda,
   Paciente,
   ProcedimentoCadastro,
   TipoAtendimento,
@@ -55,17 +56,17 @@ export function getClinicas(): Clinica[] {
   return read<Clinica[]>(KEYS.clinicas, []).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
-export function addClinica(nome: string, cor: string): Clinica {
-  const nova: Clinica = { id: uid(), nome: nome.trim(), cor };
+export function addClinica(nome: string, cor: string, agenda: DiaAgenda[] = []): Clinica {
+  const nova: Clinica = { id: uid(), nome: nome.trim(), cor, agenda };
   write(KEYS.clinicas, [...read<Clinica[]>(KEYS.clinicas, []), nova]);
   return nova;
 }
 
-export function updateClinica(id: string, dados: { nome: string; cor: string }) {
+export function updateClinica(id: string, dados: { nome: string; cor: string; agenda: DiaAgenda[] }) {
   write(
     KEYS.clinicas,
     read<Clinica[]>(KEYS.clinicas, []).map((c) =>
-      c.id === id ? { ...c, nome: dados.nome.trim(), cor: dados.cor } : c
+      c.id === id ? { ...c, nome: dados.nome.trim(), cor: dados.cor, agenda: dados.agenda } : c
     )
   );
 }

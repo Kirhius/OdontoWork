@@ -2,10 +2,21 @@ export type TipoLocal = "dente" | "arcada_superior" | "arcada_inferior" | "boca_
 
 export type TipoAtendimento = "atendimento" | "retorno" | "avaliacao";
 
+export type PeriodoAgenda = "manha" | "tarde" | "dia" | "horario";
+
+// Em que dia da semana (0 = domingo ... 6 = sábado) e em que período a clínica atende.
+export interface DiaAgenda {
+  dia: number;
+  periodo: PeriodoAgenda;
+  inicio?: string; // HH:MM, só quando periodo = "horario"
+  fim?: string; // HH:MM, só quando periodo = "horario"
+}
+
 export interface Clinica {
   id: string;
   nome: string;
   cor: string; // #RRGGBB
+  agenda?: DiaAgenda[];
 }
 
 // Procedimento cadastrado em Configurações (a lista que aparece para escolher no atendimento).

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import DeleteButton from "@/components/DeleteButton";
+import EditorAgenda from "@/components/EditorAgenda";
 import {
   addClinica,
   deleteClinica,
@@ -11,7 +12,8 @@ import {
   normalizarNome,
   updateClinica,
 } from "@/lib/storage";
-import { Clinica } from "@/lib/types";
+import { horarioValido, resumoAgenda } from "@/lib/agenda";
+import { Clinica, DiaAgenda } from "@/lib/types";
 
 const PALETA = ["#E57373", "#F2A65A", "#E8C547", "#6FBF8E", "#4DB6AC", "#64A5E8", "#9B8AE0", "#D985C0"];
 
@@ -21,6 +23,7 @@ export default function ClinicasPage() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [cor, setCor] = useState(PALETA[3]);
+  const [agenda, setAgenda] = useState<DiaAgenda[]>([]);
   const [aviso, setAviso] = useState("");
 
   function carregar() {
@@ -36,6 +39,7 @@ export default function ClinicasPage() {
 
   function limpar() {
     setNome("");
+    setAgenda([]);
     setEditandoId(null);
     setAviso("");
   }
@@ -46,8 +50,12 @@ export default function ClinicasPage() {
       setAviso("Já existe uma clínica com esse nome.");
       return;
     }
-    if (editandoId) updateClinica(editandoId, { nome, cor });
-    else addClinica(nome, cor);
+    if (!agenda.every(horarioValido)) {
+      setAviso("Em algum dia o horário final precisa ser depois do inicial.");
+      return;
+    }
+    if (editandoId) updateClinica(editandoId, { nome, cor, agenda });
+    else addClinica(nome, cor, agenda);
     limpar();
     carregar();
   }
@@ -56,17 +64,20 @@ export default function ClinicasPage() {
     setEditandoId(c.id);
     setNome(c.nome);
     setCor(c.cor);
+    setAgenda(c.agenda ?? []);
     setAviso("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
     <div>
       <PageHeader title="Clínicas" backHref="/configuracoes" />
       <p className="mb-5 text-sm text-muted">
-        A cor aparece na borda de cada atendimento, para você reconhecer a clínica de relance.
+        A cor aparece na borda de cada atendimento. Os dias e períodos alimentam o aviso &ldquo;Hoje você
+        tem agenda em...&rdquo; da tela inicial.
       </p>
 
-      <div className="mb-6 flex flex-col gap-4">
+      <div className="mb-6 flex flex-col gap-5">
         <div>
           <label htmlFor="clinica-nome" className="field-label">
             Nome da clínica
@@ -112,6 +123,17 @@ export default function ClinicasPage() {
           </div>
         </div>
 
+        <div>
+          <span className="field-label">Dias e períodos de atendimento (opcional)</span>
+          <EditorAgenda
+            value={agenda}
+            onChange={(a) => {
+              setAgenda(a);
+              setAviso("");
+            }}
+          />
+        </div>
+
         {aviso && <p className="text-xs text-danger-ink">{aviso}</p>}
 
         <div className="flex gap-3">
@@ -141,6 +163,9 @@ export default function ClinicasPage() {
                 <p className="mt-0.5 text-xs text-muted">
                   {usos[c.id] ?? 0} {(usos[c.id] ?? 0) === 1 ? "lançamento" : "lançamentos"}
                 </p>
+                {resumoAgenda(c.agenda) && (
+                  <p className="mt-0.5 text-xs text-muted">{resumoAgenda(c.agenda)}</p>
+                )}
               </button>
               <DeleteButton
                 onConfirm={() => {

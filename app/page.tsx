@@ -4,7 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import IconeTom from "@/components/IconeTom";
-import { dispensarRetorno, getAtendimentosEntre, getRetornosPendentes, RetornoPendente } from "@/lib/storage";
+import {
+  dispensarRetorno,
+  getAtendimentosEntre,
+  getClinicas,
+  getRetornosPendentes,
+  RetornoPendente,
+} from "@/lib/storage";
+import { AgendaDoDia, clinicasDoDia, frasePeriodo } from "@/lib/agenda";
 import { formatarDataBR, hojeISO } from "@/lib/data";
 
 const MAX_AVISOS = 3;
@@ -12,11 +19,13 @@ const MAX_AVISOS = 3;
 export default function Home() {
   const [hoje, setHoje] = useState<{ total: number } | null>(null);
   const [retornos, setRetornos] = useState<RetornoPendente[]>([]);
+  const [agendaHoje, setAgendaHoje] = useState<AgendaDoDia[]>([]);
 
   const carregar = useCallback(() => {
     const dia = hojeISO();
     setHoje({ total: getAtendimentosEntre(dia, dia).length });
     setRetornos(getRetornosPendentes(dia));
+    setAgendaHoje(clinicasDoDia(getClinicas(), dia));
   }, []);
 
   useEffect(carregar, [carregar]);
@@ -40,6 +49,25 @@ export default function Home() {
           <p className="text-sm text-muted">Sua agenda de atendimentos</p>
         </div>
       </div>
+
+      {/* Em qual clínica você atende hoje (definido em Configurações > Clínicas) */}
+      {agendaHoje.length > 0 && (
+        <div className="mb-6 divide-y divide-line rounded-2xl border border-line bg-surface">
+          {agendaHoje.map(({ clinica, agenda }, i) => (
+            <p key={clinica.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+              <span
+                className="h-3 w-3 shrink-0 rounded-full"
+                style={{ backgroundColor: clinica.cor }}
+                aria-hidden="true"
+              />
+              <span>
+                {i === 0 ? "Hoje você tem agenda em " : "e em "}
+                <span className="font-bold">{clinica.nome}</span> {frasePeriodo(agenda)}
+              </span>
+            </p>
+          ))}
+        </div>
+      )}
 
       <nav className="flex flex-col gap-4">
         <Link href="/atendimentos" className="home-btn">
